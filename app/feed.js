@@ -71,6 +71,7 @@ export default function MainFeed() {
           contentContainerStyle={feedStyles.listContainer}
           renderItem={({ item }) => (
             <StoreCard
+              id={item.id}
               name={item.name}
               address={item.address}
               rating={item.rating}

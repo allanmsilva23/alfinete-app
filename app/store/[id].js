@@ -1,0 +1,284 @@
+import React, { useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+export default function StoreProfile() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+  
+  // Estados de Favorito, Avaliação e Comentários
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [userRating, setUserRating] = useState(5);
+  const [userComment, setUserComment] = useState('');
+  
+  // Lista inicial de avaliações (Mock da comunidade)
+  const [reviews, setReviews] = useState([
+    {
+      id: '1',
+      name: 'Marina Souza',
+      rating: 5,
+      text: 'Peças impecáveis e muito bem cuidadas! Achei um vestido vintage lindo por um preço super justo. Recomendo demais.'
+    },
+    {
+      id: '2',
+      name: 'Rafael Lima',
+      rating: 4,
+      text: 'Ótima curadoria, roupas de qualidade e sem defeitos. Só achei o horário de funcionamento um pouco restrito.'
+    },
+    {
+      id: '3',
+      name: 'Camila Duarte',
+      rating: 5,
+      text: 'Atendimento carinhoso e peças únicas mesmo. Comprei uma jaqueta jeans e chegou em casa exatamente como descrita.'
+    }
+  ]);
+
+  // Função para enviar nova avaliação com trocadilho engraçado
+  const handleSendReview = () => {
+    if (!userComment.trim()) {
+      Alert.alert('Ops!', 'Escreva um comentário antes de cravar seu alfinete.');
+      return;
+    }
+
+    const newReview = {
+      id: Date.now().toString(),
+      name: 'Você',
+      rating: userRating,
+      text: userComment
+    };
+
+    setReviews([newReview, ...reviews]);
+    setUserComment('');
+    setUserRating(5);
+    
+    // Alerta com trocadilho temático
+    Alert.alert(
+      'Alfinetada enviada com sucesso! 📌',
+      'Muito obrigado por contribuir! Sua opinião ficou afiada e já está costurada no mural da comunidade!'
+    );
+  };
+
+  const openApp = (type) => {
+    if (type === 'whatsapp') {
+      Linking.openURL('https://wa.me/5511999999999');
+    } else if (type === 'instagram') {
+      Linking.openURL('https://instagram.com/brechodareeh');
+    } else if (type === 'maps') {
+      Linking.openURL('https://www.google.com/maps/search/?api=1&query=R.+Narceja,+171+-+Vila+Nova+Curuca,+Sao+Paulo');
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      
+      {/* Capa e Botão Voltar */}
+      <View style={styles.coverContainer}>
+        <Image source={{ uri: 'https://via.placeholder.com/400x250' }} style={styles.coverImage} />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Feather name="arrow-left" size={24} color="#A06D44" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.storeName}>Brechó da Reeh Store</Text>
+          <TouchableOpacity style={styles.heartButton} onPress={() => setIsFavorite(!isFavorite)}>
+            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={24} color={isFavorite ? "#E15F41" : "#A06D44"} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.description}>Um brechó com alma retrô e curadoria afetiva. Peças únicas garimpadas com carinho...</Text>
+
+        {/* Endereço */}
+        <View style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.iconBox}><Ionicons name="location" size={16} color="#D32F2F" /></View>
+            <Text style={styles.infoTitle}>Endereço</Text>
+          </View>
+          <Text style={styles.infoText}>R. Narceja, 171 - Vila Nova Curuca, São Paulo - SP</Text>
+        </View>
+
+        {/* Horário */}
+        <View style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.iconBox}><Ionicons name="time-outline" size={16} color="#A06D44" /></View>
+            <Text style={styles.infoTitle}>Horário de Funcionamento</Text>
+          </View>
+          <View style={styles.rowBetween}><Text style={styles.infoText}>Terça - Sexta</Text><Text style={styles.infoBoldText}>13h - 17h</Text></View>
+          <View style={styles.rowBetween}><Text style={styles.infoText}>Final de semana - Segunda</Text><Text style={styles.infoClosedText}>Fechado</Text></View>
+        </View>
+
+        {/* Preço Médio */}
+        <View style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.iconBox}><Ionicons name="pricetag-outline" size={16} color="#A06D44" /></View>
+            <Text style={styles.infoTitle}>Preço Médio</Text>
+          </View>
+          <Text style={styles.subText}>Faixa de preço: <Text style={styles.infoBoldText}>R$ 30 - R$ 80</Text></Text>
+          <View style={styles.priceBarContainer}>
+            <View style={[styles.priceBarActive, { flex: 2 }]} /><View style={[styles.priceBarInactive, { flex: 3 }]} />
+          </View>
+          <Text style={styles.tinyText}>$$ - Acessível a moderado</Text>
+        </View>
+
+        {/* Regras */}
+        <View style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.ruleIconBox}><Ionicons name="checkbox-outline" size={16} color="#FFFFFF" /></View>
+            <Text style={styles.infoTitle}>Regras de Avaliação de Roupas</Text>
+          </View>
+          <Text style={styles.ruleItem}>✓ Peças devem estar limpas e sem manchas visíveis</Text>
+          <Text style={styles.ruleItem}>✓ Sem rasgos, furos ou costuras desfeitas</Text>
+          <Text style={styles.ruleItem}>✓ Máximo de 5 peças por avaliação</Text>
+        </View>
+
+        {/* BOTÕES DE CONTATO */}
+        <TouchableOpacity style={styles.buttonWrapper} onPress={() => openApp('instagram')}>
+          <LinearGradient colors={['#D97743', '#E3A642']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+            <Feather name="instagram" size={20} color="#FFF" />
+            <Text style={styles.contactButtonText}>Abrir Instagram</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.buttonWrapper} onPress={() => openApp('whatsapp')}>
+          <LinearGradient colors={['#5CE1E6', '#B2F4EC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+            <Ionicons name="logo-whatsapp" size={20} color="#A06D44" />
+            <Text style={[styles.contactButtonText, { color: '#A06D44' }]}>Abrir WhatsApp</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.outlineButton} onPress={() => openApp('maps')}>
+          <View style={styles.iconBoxOutline}><Feather name="navigation" size={16} color="#A06D44" /></View>
+          <Text style={styles.outlineButtonText}>Como Chegar</Text>
+        </TouchableOpacity>
+
+        {/* ========================================== */}
+        {/* MINI FORMULÁRIO: DEIXE SEU ALFINETE       */}
+        {/* ========================================== */}
+        <View style={[styles.infoCard, { marginTop: 25, backgroundColor: '#FFF9F0' }]}>
+          <Text style={styles.smallSubtitle}>SUA OPINIÃO IMPORTA</Text>
+          <Text style={styles.formMainTitle}>Deixe seu alfinete 📍</Text>
+          
+          <Text style={styles.labelNota}>Sua nota</Text>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} onPress={() => setUserRating(star)}>
+                <FontAwesome 
+                  name={star <= userRating ? "star" : "star-o"} 
+                  size={26} 
+                  color="#D4A373" 
+                  style={{ marginRight: 8 }}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Conte como foi sua experiência..."
+            placeholderTextColor="#AAA"
+            multiline
+            numberOfLines={4}
+            value={userComment}
+            onChangeText={setUserComment}
+          />
+
+          <TouchableOpacity style={styles.buttonWrapper} onPress={handleSendReview}>
+            <LinearGradient colors={['#D97743', '#E3A642']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+              <Text style={styles.contactButtonText}>Enviar Avaliação</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* ========================================== */}
+        {/* LISTA DE AVALIAÇÕES DA COMUNIDADE       */}
+        {/* ========================================== */}
+        <Text style={[styles.smallSubtitle, { marginTop: 20 }]}>COMUNIDADE</Text>
+        <Text style={styles.formMainTitle}>Avaliações dos usuários do Alfinete</Text>
+
+        {reviews.map((item) => (
+          <View key={item.id} style={styles.infoCard}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.infoTitle}>{item.name}</Text>
+              <View style={{ flexDirection: 'row', gap: 2 }}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <FontAwesome 
+                    key={s} 
+                    name={s <= item.rating ? "star" : "star-o"} 
+                    size={13} 
+                    color="#D4A373" 
+                  />
+                ))}
+              </View>
+            </View>
+            <Text style={styles.infoText}>{item.text}</Text>
+          </View>
+        ))}
+
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
+  coverContainer: { position: 'relative' },
+  coverImage: { width: '100%', height: 250 },
+  backButton: { position: 'absolute', top: 50, left: 20, backgroundColor: '#FFF', padding: 10, borderRadius: 20 },
+  content: { padding: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  storeName: { fontSize: 22, fontWeight: 'bold', color: '#A06D44' },
+  description: { color: '#888', marginTop: 10, lineHeight: 22, marginBottom: 15 },
+  
+  infoCard: { 
+    backgroundColor: '#FFFDF9', 
+    borderWidth: 1, 
+    borderColor: '#EAE0D0', 
+    padding: 15, 
+    borderRadius: 16, 
+    marginBottom: 15 
+  },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  iconBox: { backgroundColor: '#FFFFFF', padding: 8, borderRadius: 10, marginRight: 10, borderWidth: 1, borderColor: '#F0EBE1' },
+  ruleIconBox: { backgroundColor: '#D4A373', padding: 8, borderRadius: 10, marginRight: 10 },
+  infoTitle: { fontWeight: 'bold', color: '#A06D44', fontSize: 15 },
+  infoText: { color: '#666', marginTop: 8, fontSize: 13 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  infoBoldText: { fontWeight: 'bold', color: '#A06D44', fontSize: 13 },
+  infoClosedText: { color: '#E15F41', fontWeight: 'bold', fontSize: 13 },
+  subText: { color: '#666', fontSize: 13, marginTop: 8 },
+  tinyText: { color: '#888', fontSize: 11, marginTop: 6 },
+  priceBarContainer: { flexDirection: 'row', height: 6, gap: 4, marginTop: 6 },
+  priceBarActive: { backgroundColor: '#5CE1E6', borderRadius: 3 },
+  priceBarInactive: { backgroundColor: '#E6DFD6', borderRadius: 3 },
+  ruleItem: { color: '#666', fontSize: 13, marginTop: 8 },
+
+  buttonWrapper: { marginTop: 15, borderRadius: 25, overflow: 'hidden' },
+  gradientButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  contactButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  
+  outlineButton: { 
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', 
+    backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#D8C5B3', 
+    padding: 14, borderRadius: 25, marginTop: 15, marginBottom: 10
+  },
+  iconBoxOutline: { marginRight: 8 },
+  outlineButtonText: { color: '#A06D44', fontWeight: 'bold', fontSize: 16 },
+
+  smallSubtitle: { fontSize: 11, fontWeight: '700', color: '#A69076', letterSpacing: 1 },
+  formMainTitle: { fontSize: 18, fontWeight: 'bold', color: '#A06D44', marginTop: 2, marginBottom: 10 },
+  labelNota: { fontSize: 13, color: '#666', marginBottom: 5 },
+  starsRow: { flexDirection: 'row', marginBottom: 12 },
+  commentInput: { 
+    backgroundColor: '#FFF', 
+    borderWidth: 1, 
+    borderColor: '#EAE0D0', 
+    borderRadius: 12, 
+    padding: 12, 
+    height: 90, 
+    textAlignVertical: 'top', 
+    color: '#333',
+    fontSize: 14 
+  }
+});
