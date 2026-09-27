@@ -2,29 +2,26 @@
   "expo": {
     "name": "Alfinete",
     "slug": "alfinete-app",
-    "scheme": "com.googleusercontent.apps.865575641487-l89ibt073nicbejgcl9bp1pok46hor4f",
+    "scheme": "alfineteapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "alfineteapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alfinete.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.alfinete.app"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#6fe7cd",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/alfineteLogoAndroid.png",
+        "backgroundImage": "./assets/images/backgroundAlfineteLogoAndroid.png",
+        "monochromeImage": "./assets/images/alfineteLogoBWAndroid.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.alfinete.app",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.alfinete.app"
     },
     "web": {
       "output": "static"
@@ -42,7 +39,11 @@
             "backgroundColor": "#6fe7cd"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
