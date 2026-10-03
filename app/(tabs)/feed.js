@@ -1,3 +1,11 @@
+// ================= TODO: ALAN =================
+  // 1. Apague a importação do `storeMocks` no topo do arquivo.
+  // 2. Crie um estado: const [brechos, setBrechos] = useState([]);
+  // 3. Faça um fetch (GET /brechos/filtros) dentro de um useEffect e salve no setBrechos.
+  // 4. Na FlatList lá embaixo, troque a propriedade `data={storeMocks}` por `data={brechos}`.
+  // 5. Adicione um ActivityIndicator (Loading) para quando a requisição estiver rodando.
+  // ==============================================
+
 import React, { useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, SafeAreaView, Image } from "react-native";
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';

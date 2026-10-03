@@ -59,10 +59,21 @@ export default function EvaluateItem() {
     setFotoVerso(null);
   };
 
-  const handleEnviarTudo = () => {
+  const handleEnviarTudo = async () => {
+    if (pecasAdicionadas.length === 0) return;
+
+    // ================= TODO: ALAN =================
+    // 1. Mapeie o array `pecasAdicionadas`.
+    // 2. Para cada peça, capture a `fotoFrente` e `fotoVerso` (que são caminhos locais do celular).
+    // 3. Faça o upload desses arquivos para o Firebase Storage.
+    // 4. Recupere a URL pública gerada pelo Firebase.
+    // 5. Substitua o caminho local pela URL pública no objeto da peça.
+    // 6. Faça o POST para a rota do Back-end enviando o payload completo com as URLs do Firebase.
+    // ==============================================
+
     Alert.alert(
       'Sucesso! 🎉',
-      `Você enviou ${pecasAdicionadas.length} peça(s) para avaliação!\n\nO ${storeName} entrará em contato pelo chat em breve.`,
+      `Você enviou ${pecasAdicionadas.length} peça(s) para avaliação!\n\nO brechó entrará em contato em breve.`,
       [{ text: 'Voltar ao Brechó', onPress: () => router.back() }]
     );
   };
