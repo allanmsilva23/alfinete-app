@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, SafeAreaView, Image } from "react-native";
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
-import { feedStyles } from "../components/componetsStyles/feedStyle";
-import StoreCard from "../components/storeCard";
-import { storeMocks } from "../mocks/storesMocks";
+import { feedStyles } from "../../components/componetsStyles/feedStyle";
+import StoreCard from "../../components/storeCard";
+import { storeMocks } from "../../mocks/storesMocks";
 
 /*
     Tela de Feed
@@ -18,7 +18,7 @@ export default function MainFeed() {
       <View style={feedStyles.container}>
         <View style={feedStyles.header}>
           <Image
-            source={require("../assets/images/alfineteLogoAndroid.png")}
+            source={require("../../assets/images/alfineteLogoAndroid.png")}
             style={feedStyles.logo}
             resizeMode="contain"
           />
