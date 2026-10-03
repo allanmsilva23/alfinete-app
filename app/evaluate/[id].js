@@ -124,7 +124,7 @@ export default function EvaluateItem() {
             style={styles.dropdownInput} 
             onPress={() => setShowDropdown(!showDropdown)}
           >
-            <Text style={styles.inputText}>{categoria}</Text>
+            <Text style={[styles.inputText, { flex: 1 }]}>{categoria}</Text>
             <Feather name={showDropdown ? "chevron-up" : "chevron-down"} size={20} color="#D8C5B3" />
           </TouchableOpacity>
 
