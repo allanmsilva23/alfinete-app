@@ -1,3 +1,11 @@
+// ================= TODO: ALAN =================
+  // 1. Apague a importação do `storeMocks` no topo do arquivo.
+  // 2. Crie um estado: const [store, setStore] = useState(null);
+  // 3. Faça um fetch (GET /brechos/:id) usando o ID que vem do useLocalSearchParams.
+  // 4. Salve o retorno no setStore. (O front já está configurado para ler {store?.name}, etc).
+  // 5. Adicione um return de loading antes do return principal para não quebrar a tela enquanto baixa os dados.
+  // ==============================================
+
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
