@@ -1,46 +1,58 @@
+<<<<<<< Updated upstream
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet } from 'react-native';
+=======
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet, ActivityIndicator } from 'react-native';
+>>>>>>> Stashed changes
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { storeMocks } from '../../mocks/storesMocks';
-
-/*
-
-  Tela de perfil para a loja selecionada a partir do feed.
-
-*/
 
 export default function StoreProfile() {
   const { id } = useLocalSearchParams();
   const router = useRouter(); 
   
-  const store = storeMocks.find(s => s.id === id);
+  const [store, setStore] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState([]);
   
   const [isFavorite, setIsFavorite] = useState(false);
   const [userRating, setUserRating] = useState(5);
   const [userComment, setUserComment] = useState('');
   
-  const [reviews, setReviews] = useState([
-    {
-      id: '1',
-      name: 'Marina Souza',
-      rating: 5,
-      text: 'Peças impecáveis e muito bem cuidadas! Achei um vestido vintage lindo por um preço super justo. Recomendo demais.'
-    },
-    {
-      id: '2',
-      name: 'Rafael Lima',
-      rating: 4,
-      text: 'Ótima curadoria, roupas de qualidade e sem defeitos. Só achei o horário de funcionamento um pouco restrito.'
-    },
-    {
-      id: '3',
-      name: 'Camila Duarte',
-      rating: 5,
-      text: 'Atendimento carinhoso e peças únicas mesmo. Comprei uma jaqueta jeans e chegou em casa exatamente como descrita.'
-    }
-  ]);
+  useEffect(() => {
+    fetch(`https://alfinete.alwaysdata.net/brechos/${id}`)
+      .then((response) => response.json())
+      .then((json) => {
+        if (json.sucesso) {
+          const dados = json.dados;
+          // Formatando o endereço que vem quebrado do JSON_OBJECT do SQL
+          const enderecoFormatado = dados.endereco_completo 
+            ? `${dados.endereco_completo.logradouro}, ${dados.endereco_completo.numero} - ${dados.endereco_completo.bairro}`
+            : 'Endereço não disponível';
+
+          setStore({
+            ...dados,
+            name: dados.nome,
+            description: dados.descricao,
+            address: enderecoFormatado,
+          });
+
+          // Puxando as avaliações reais do banco
+          if (dados.avaliacoes && dados.avaliacoes.length > 0) {
+             setReviews(dados.avaliacoes.map((av, index) => ({
+               id: index.toString(),
+               name: av.nome_usuario,
+               rating: av.nota,
+               text: av.comentario
+             })));
+          }
+        }
+      })
+      .catch((error) => console.error("Erro ao carregar detalhes:", error))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   const handleSendReview = () => {
     if (!userComment.trim()) {
@@ -65,13 +77,47 @@ export default function StoreProfile() {
     );
   };
 
-  const openApp = (type) => {
+const openApp = (type) => {
+    // Evita cliques antes de a API carregar os dados
+    if (!store) return;
+
     if (type === 'whatsapp') {
-      Linking.openURL('https://wa.me/5511999999999');
+      // Ajusta 'store.whatsapp' para o nome exato da coluna na tua base de dados (ex: store.telefone)
+      const numero = store.whatsapp; 
+      
+      if (numero) {
+        // Limpa a string para garantir que só passam números (remove traços, espaços ou parênteses)
+        const numeroLimpo = String(numero).replace(/\D/g, ''); 
+        
+        // Assume o código de país 55 (Brasil) caso o banco guarde apenas o DDD + Número
+        const urlFinal = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
+        Linking.openURL(`https://wa.me/${urlFinal}`);
+      } else {
+        Alert.alert('Aviso', 'Este brechó não disponibilizou um contacto de WhatsApp.');
+      }
+      
     } else if (type === 'instagram') {
-      Linking.openURL('https://instagram.com/brechodareeh');
+      // Ajusta 'store.instagram' para o nome da tua coluna
+      const insta = store.instagram; 
+      
+      if (insta) {
+        // Verifica se a base de dados guardou o link completo ou apenas o @arroba
+        const url = insta.startsWith('http') 
+          ? insta 
+          : `https://instagram.com/${insta.replace('@', '')}`;
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Aviso', 'Este brechó não disponibilizou um Instagram.');
+      }
+      
     } else if (type === 'maps') {
-      Linking.openURL('https://www.google.com/maps/search/?api=1&query=R.+Narceja,+171+-+Vila+Nova+Curuca,+Sao+Paulo');
+      if (store.address && store.address !== 'Endereço não disponível') {
+        // O encodeURIComponent transforma espaços e vírgulas do endereço formatado em caracteres válidos para URL (ex: %20)
+        const query = encodeURIComponent(store.address);
+        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+      } else {
+        Alert.alert('Aviso', 'Endereço indisponível para navegação no mapa.');
+      }
     }
   };
 

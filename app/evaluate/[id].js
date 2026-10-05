@@ -1,63 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { storeMocks } from '../../mocks/storesMocks';
+const [isSubmitting, setIsSubmitting] = useState(false);
 
-/*
+const handleAdicionarPeca = () => {
+  if (!fotoFrente) {
+    Alert.alert('Falta a foto!', 'Por favor, adicione pelo menos a foto da frente da peça.');
+    return;
+  }
 
-    Tela de formulário de avaliação de peças
-
-*/
-
-export default function EvaluateItem() {
-  const { id } = useLocalSearchParams();
-  const router = useRouter();
-
-  const store = storeMocks.find(s => s.id === id);
-  const storeName = store ? store.name : 'Brechó Selecionado';
-
-  const [categoria, setCategoria] = useState('Camiseta');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const categoriasDisponiveis = ['Camiseta', 'Calça', 'Casaco/Jaqueta', 'Vestido', 'Saia', 'Shorts', 'Acessório', 'Outro'];
-
-
-  const [marca, setMarca] = useState('');
-  const [tamanho, setTamanho] = useState('');
-  const [descricao, setDescricao] = useState('');
-  
-  const [temManchas, setTemManchas] = useState(false);
-  const [temRasgos, setTemRasgos] = useState(false);
-
-  const [fotoFrente, setFotoFrente] = useState(null);
-  const [fotoVerso, setFotoVerso] = useState(null);
-
-  const [pecasAdicionadas, setPecasAdicionadas] = useState([]);
-
-  const handleAdicionarPeca = () => {
-    if (!fotoFrente) {
-      Alert.alert('Falta a foto!', 'Por favor, adicione pelo menos a foto da frente da peça.');
-      return;
-    }
-
-    const novaPeca = {
-      id: Date.now().toString(),
-      categoria,
-      marca: marca || 'Sem marca',
-      tamanho: tamanho || 'N/A'
-    };
-    setPecasAdicionadas([novaPeca, ...pecasAdicionadas]);
-
-    setCategoria('Camiseta');
-    setMarca('');
-    setTamanho('');
-    setDescricao('');
-    setTemManchas(false);
-    setTemRasgos(false);
-    setFotoFrente(null);
-    setFotoVerso(null);
+  const novaPeca = {
+    id: Date.now().toString(),
+    categoria,
+    marca: marca || 'Sem marca',
+    tamanho: tamanho || 'N/A',
+    descricao,
+    temManchas,
+    temRasgos,
+    fotoFrente, 
+    fotoVerso
   };
+  
+  setPecasAdicionadas([novaPeca, ...pecasAdicionadas]);
 
   const handleEnviarTudo = () => {
     Alert.alert(
@@ -469,4 +430,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16
   }
-});
+};
