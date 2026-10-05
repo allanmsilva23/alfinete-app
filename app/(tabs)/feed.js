@@ -43,7 +43,7 @@ export default function MainFeed() {
       <View style={feedStyles.container}>
         <View style={feedStyles.header}>
           <Image
-            source={require("../assets/images/alfineteLogoAndroid.png")}
+            source={require("../../assets/images/alfineteLogoAndroid.png")}
             style={feedStyles.logo}
             resizeMode="contain"
           />
