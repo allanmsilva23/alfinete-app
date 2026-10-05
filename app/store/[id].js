@@ -1,10 +1,5 @@
-<<<<<<< Updated upstream
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet } from 'react-native';
-=======
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet, ActivityIndicator } from 'react-native';
->>>>>>> Stashed changes
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, Linking, Alert, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,7 +22,6 @@ export default function StoreProfile() {
       .then((json) => {
         if (json.sucesso) {
           const dados = json.dados;
-          // Formatando o endereço que vem quebrado do JSON_OBJECT do SQL
           const enderecoFormatado = dados.endereco_completo 
             ? `${dados.endereco_completo.logradouro}, ${dados.endereco_completo.numero} - ${dados.endereco_completo.bairro}`
             : 'Endereço não disponível';
@@ -37,9 +31,10 @@ export default function StoreProfile() {
             name: dados.nome,
             description: dados.descricao,
             address: enderecoFormatado,
+            whatsapp: dados.telefone,         // Corrigido: Guarda o WhatsApp
+            instagram: dados.link_instagram   // Corrigido: Guarda o Instagram
           });
 
-          // Puxando as avaliações reais do banco
           if (dados.avaliacoes && dados.avaliacoes.length > 0) {
              setReviews(dados.avaliacoes.map((av, index) => ({
                id: index.toString(),
@@ -77,31 +72,21 @@ export default function StoreProfile() {
     );
   };
 
-const openApp = (type) => {
-    // Evita cliques antes de a API carregar os dados
+  const openApp = (type) => {
     if (!store) return;
 
     if (type === 'whatsapp') {
-      // Ajusta 'store.whatsapp' para o nome exato da coluna na tua base de dados (ex: store.telefone)
       const numero = store.whatsapp; 
-      
       if (numero) {
-        // Limpa a string para garantir que só passam números (remove traços, espaços ou parênteses)
         const numeroLimpo = String(numero).replace(/\D/g, ''); 
-        
-        // Assume o código de país 55 (Brasil) caso o banco guarde apenas o DDD + Número
         const urlFinal = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
         Linking.openURL(`https://wa.me/${urlFinal}`);
       } else {
         Alert.alert('Aviso', 'Este brechó não disponibilizou um contacto de WhatsApp.');
       }
-      
     } else if (type === 'instagram') {
-      // Ajusta 'store.instagram' para o nome da tua coluna
       const insta = store.instagram; 
-      
       if (insta) {
-        // Verifica se a base de dados guardou o link completo ou apenas o @arroba
         const url = insta.startsWith('http') 
           ? insta 
           : `https://instagram.com/${insta.replace('@', '')}`;
@@ -109,10 +94,8 @@ const openApp = (type) => {
       } else {
         Alert.alert('Aviso', 'Este brechó não disponibilizou um Instagram.');
       }
-      
     } else if (type === 'maps') {
       if (store.address && store.address !== 'Endereço não disponível') {
-        // O encodeURIComponent transforma espaços e vírgulas do endereço formatado em caracteres válidos para URL (ex: %20)
         const query = encodeURIComponent(store.address);
         Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
       } else {
@@ -125,7 +108,7 @@ const openApp = (type) => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       
       <View style={styles.coverContainer}>
-        <Image source={{ uri: 'https://via.placeholder.com/400x250' }} style={styles.coverImage} />
+        <Image source={{ uri: store?.imagem || 'https://via.placeholder.com/400x250' }} style={styles.coverImage} />
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Feather name="arrow-left" size={24} color="#A06D44" />
         </TouchableOpacity>
@@ -182,14 +165,14 @@ const openApp = (type) => {
         <TouchableOpacity style={styles.buttonWrapper} onPress={() => openApp('instagram')}>
           <LinearGradient colors={['#D97743', '#E3A642']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
             <Feather name="instagram" size={20} color="#FFF" />
-            <Text style={styles.contactButtonText}>Abrir Instagram</Text>
+            <Text style={styles.contactButtonText}>  Abrir Instagram</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.buttonWrapper} onPress={() => openApp('whatsapp')}>
           <LinearGradient colors={['#5CE1E6', '#B2F4EC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
             <Ionicons name="logo-whatsapp" size={20} color="#A06D44" />
-            <Text style={[styles.contactButtonText, { color: '#A06D44' }]}>Abrir WhatsApp</Text>
+            <Text style={[styles.contactButtonText, { color: '#A06D44' }]}>  Abrir WhatsApp</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -200,7 +183,7 @@ const openApp = (type) => {
 
         <TouchableOpacity 
           style={[styles.buttonWrapper, { marginBottom: 15 }]} 
-          onPress={() => router.push(`/evaluate/${id}`)}
+          onPress={() => router.push({ pathname: `/evaluate/${id}`, params: { storeName: store?.name } })}
         >
           <LinearGradient 
             colors={['#D97743', '#C95E42']} 
@@ -276,192 +259,38 @@ const openApp = (type) => {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#FAF8F5' 
-  },
-  coverContainer: { 
-    position: 'relative' 
-  },
-  coverImage: { 
-    width: '100%', 
-    height: 250 
-  },
-  backButton: { 
-    position: 'absolute', 
-    top: 50, 
-    left: 20, 
-    backgroundColor: '#FFF', 
-    padding: 10, 
-    borderRadius: 20 
-  },
-  content: { 
-    padding: 20 
-  },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
-  },
-  storeName: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: '#A06D44' 
-  },
-  description: { 
-    color: '#888', 
-    marginTop: 10, 
-    lineHeight: 22, 
-    marginBottom: 15 
-  },
-  infoCard: { 
-    backgroundColor: '#FFFDF9', 
-    borderWidth: 1, 
-    borderColor: '#EAE0D0', 
-    padding: 15, 
-    borderRadius: 16, 
-    marginBottom: 15 
-  },
-  cardHeaderRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
-  },
-  iconBox: { 
-    backgroundColor: '#FFFFFF', 
-    padding: 8, 
-    borderRadius: 10, 
-    marginRight: 10, 
-    borderWidth: 1, 
-    borderColor: '#F0EBE1' 
-  },
-  ruleIconBox: { 
-    backgroundColor: '#D4A373', 
-    padding: 8, 
-    borderRadius: 10, 
-    marginRight: 10 
-  },
-  infoTitle: { 
-    fontWeight: 'bold', 
-    color: '#A06D44', 
-    fontSize: 15 
-  },
-  infoText: { 
-    color: '#666', 
-    marginTop: 8, 
-    fontSize: 13 
-  },
-  rowBetween: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginTop: 4 
-  },
-  infoBoldText: { 
-    fontWeight: 'bold', 
-    color: '#A06D44', 
-    fontSize: 13 
-  },
-  infoClosedText: { 
-    color: '#E15F41', 
-    fontWeight: 'bold', 
-    fontSize: 13 
-  },
-  subText: { 
-    color: '#666', 
-    fontSize: 13, 
-    marginTop: 8 
-  },
-  tinyText: { 
-    color: '#888', 
-    fontSize: 11, 
-    marginTop: 6 
-  },
-  priceBarContainer: { 
-    flexDirection: 'row', 
-    height: 6, 
-    gap: 4, 
-    marginTop: 6 
-  },
-  priceBarActive: { 
-    backgroundColor: '#5CE1E6', 
-    borderRadius: 3 
-  },
-  priceBarInactive: { 
-    backgroundColor: '#E6DFD6', 
-    borderRadius: 3 
-  },
-  ruleItem: { 
-    color: '#666', 
-    fontSize: 13, 
-    marginTop: 8 
-  },
-  buttonWrapper: { 
-    marginTop: 15, 
-    borderRadius: 25, 
-    overflow: 'hidden' 
-  },
-  gradientButton: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    padding: 16 
-  },
-  contactButtonText: { 
-    color: '#FFF', 
-    fontWeight: 'bold', 
-    fontSize: 16 
-  },
-  outlineButton: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#FFF', 
-    borderWidth: 1.5, 
-    borderColor: '#D8C5B3', 
-    padding: 14, 
-    borderRadius: 25, 
-    marginTop: 15, 
-    marginBottom: 10
-  },
-  iconBoxOutline: { 
-    marginRight: 8 
-  },
-  outlineButtonText: { 
-    color: '#A06D44', 
-    fontWeight: 'bold', 
-    fontSize: 16 
-  },
-  smallSubtitle: { 
-    fontSize: 11, 
-    fontWeight: '700', 
-    color: '#A69076', 
-    letterSpacing: 1 
-  },
-  formMainTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#A06D44', 
-    marginTop: 2, 
-    marginBottom: 10 
-  },
-  labelNota: { 
-    fontSize: 13, 
-    color: '#666', 
-    marginBottom: 5 
-  },
-  starsRow: { 
-    flexDirection: 'row', 
-    marginBottom: 12 
-  },
-  commentInput: { 
-    backgroundColor: '#FFF', 
-    borderWidth: 1, 
-    borderColor: '#EAE0D0', 
-    borderRadius: 12, 
-    padding: 12, 
-    height: 90, 
-    textAlignVertical: 'top', 
-    color: '#333',
-    fontSize: 14 
-  }
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
+  coverContainer: { position: 'relative' },
+  coverImage: { width: '100%', height: 250 },
+  backButton: { position: 'absolute', top: 50, left: 20, backgroundColor: '#FFF', padding: 10, borderRadius: 20 },
+  content: { padding: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  storeName: { fontSize: 22, fontWeight: 'bold', color: '#A06D44', flex: 1, paddingRight: 10 },
+  description: { color: '#888', marginTop: 10, lineHeight: 22, marginBottom: 15 },
+  infoCard: { backgroundColor: '#FFFDF9', borderWidth: 1, borderColor: '#EAE0D0', padding: 15, borderRadius: 16, marginBottom: 15 },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  iconBox: { backgroundColor: '#FFFFFF', padding: 8, borderRadius: 10, marginRight: 10, borderWidth: 1, borderColor: '#F0EBE1' },
+  ruleIconBox: { backgroundColor: '#D4A373', padding: 8, borderRadius: 10, marginRight: 10 },
+  infoTitle: { fontWeight: 'bold', color: '#A06D44', fontSize: 15 },
+  infoText: { color: '#666', marginTop: 8, fontSize: 13 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  infoBoldText: { fontWeight: 'bold', color: '#A06D44', fontSize: 13 },
+  infoClosedText: { color: '#E15F41', fontWeight: 'bold', fontSize: 13 },
+  subText: { color: '#666', fontSize: 13, marginTop: 8 },
+  tinyText: { color: '#888', fontSize: 11, marginTop: 6 },
+  priceBarContainer: { flexDirection: 'row', height: 6, gap: 4, marginTop: 6 },
+  priceBarActive: { backgroundColor: '#5CE1E6', borderRadius: 3 },
+  priceBarInactive: { backgroundColor: '#E6DFD6', borderRadius: 3 },
+  ruleItem: { color: '#666', fontSize: 13, marginTop: 8 },
+  buttonWrapper: { marginTop: 15, borderRadius: 25, overflow: 'hidden' },
+  gradientButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  contactButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  outlineButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#D8C5B3', padding: 14, borderRadius: 25, marginTop: 15, marginBottom: 10 },
+  iconBoxOutline: { marginRight: 8 },
+  outlineButtonText: { color: '#A06D44', fontWeight: 'bold', fontSize: 16 },
+  smallSubtitle: { fontSize: 11, fontWeight: '700', color: '#A69076', letterSpacing: 1 },
+  formMainTitle: { fontSize: 18, fontWeight: 'bold', color: '#A06D44', marginTop: 2, marginBottom: 10 },
+  labelNota: { fontSize: 13, color: '#666', marginBottom: 5 },
+  starsRow: { flexDirection: 'row', marginBottom: 12 },
+  commentInput: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#EAE0D0', borderRadius: 12, padding: 12, height: 90, textAlignVertical: 'top', color: '#333', fontSize: 14 }
 });

@@ -1,7 +1,6 @@
-<<<<<<< Updated upstream:app/feed.js
-import React, { useState } from "react";
-import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, SafeAreaView, Image } from "react-native";
-import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import React, { useState, useEffect } from "react";
+import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, ActivityIndicator } from "react-native";import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { feedStyles } from "../components/componetsStyles/feedStyle";
 import StoreCard from "../components/storeCard";
 import { storeMocks } from "../mocks/storesMocks";
@@ -10,13 +9,6 @@ import { storeMocks } from "../mocks/storesMocks";
     Tela de Feed
     Essa tela exibe em forma de lista os brechós cadastrados no app
 */
-=======
-import React, { useState, useEffect } from "react";
-import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, SafeAreaView, Image, ActivityIndicator } from "react-native";
-import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
-import { feedStyles } from "../../components/componetsStyles/feedStyle";
-import StoreCard from "../../components/storeCard";
->>>>>>> Stashed changes:app/(tabs)/feed.js
 
 export default function MainFeed() {
   const [filtroAtivo, setFiltroAtivo] = useState(null);
