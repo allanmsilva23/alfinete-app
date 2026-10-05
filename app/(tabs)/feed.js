@@ -1,17 +1,9 @@
-// ================= TODO: ALAN =================
-  // 1. Apague a importação do `storeMocks` no topo do arquivo.
-  // 2. Crie um estado: const [brechos, setBrechos] = useState([]);
-  // 3. Faça um fetch (GET /brechos/filtros) dentro de um useEffect e salve no setBrechos.
-  // 4. Na FlatList lá embaixo, troque a propriedade `data={storeMocks}` por `data={brechos}`.
-  // 5. Adicione um ActivityIndicator (Loading) para quando a requisição estiver rodando.
-  // ==============================================
-
-import React, { useState } from "react";
-import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, SafeAreaView, Image } from "react-native";
-import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
-import { feedStyles } from "../../components/componetsStyles/feedStyle";
-import StoreCard from "../../components/storeCard";
-import { storeMocks } from "../../mocks/storesMocks";
+import React, { useState, useEffect } from "react";
+import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, ActivityIndicator } from "react-native";import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { feedStyles } from "../components/componetsStyles/feedStyle";
+import StoreCard from "../components/storeCard";
+import { storeMocks } from "../mocks/storesMocks";
 
 /*
     Tela de Feed
@@ -20,6 +12,31 @@ import { storeMocks } from "../../mocks/storesMocks";
 
 export default function MainFeed() {
   const [filtroAtivo, setFiltroAtivo] = useState(null);
+  
+  // 1. Estados para os dados reais e para o loading
+  const [brechos, setBrechos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 2. Fetch da listagem de brechós
+  useEffect(() => {
+    fetch('https://alfinete.alwaysdata.net/brechos/filtros')
+      .then((response) => response.json())
+      .then((json) => {
+        if (json.sucesso) {
+          // Mapeando as chaves do Back-end para as props que o StoreCard espera
+          const dadosMapeados = json.dados.map((loja) => ({
+            id: loja.id.toString(),
+            name: loja.nome,
+            address: loja.endereco_curto,
+            rating: 5.0,
+            tags: loja.estilos,
+          }));
+          setBrechos(dadosMapeados);
+        }
+      })
+      .catch((error) => console.error("Erro ao buscar brechós:", error))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <SafeAreaView style={feedStyles.safeArea}>
@@ -72,21 +89,26 @@ export default function MainFeed() {
           </ScrollView>
         </View>
 
-        <FlatList
-          data={storeMocks}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={feedStyles.listContainer}
-          renderItem={({ item }) => (
-            <StoreCard
-              id={item.id}
-              name={item.name}
-              address={item.address}
-              rating={item.rating}
-              tags={item.tags}
-            />
-          )}
-        />
+        {/* 3. Indicador de Carregamento ou Lista Real */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#A06D44" style={{ marginTop: 50 }} />
+        ) : (
+          <FlatList
+            data={brechos}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={feedStyles.listContainer}
+            renderItem={({ item }) => (
+              <StoreCard
+                id={item.id}
+                name={item.name}
+                address={item.address}
+                rating={item.rating}
+                tags={item.tags}
+              />
+            )}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
