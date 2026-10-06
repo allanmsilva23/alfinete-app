@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, ActivityIndicator } from "react-native";import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { feedStyles } from "../components/componetsStyles/feedStyle";
-import StoreCard from "../components/storeCard";
-import { storeMocks } from "../mocks/storesMocks";
+import { feedStyles } from "../../components/componetsStyles/feedStyle";
+import StoreCard from "../../components/storeCard";
+import { storeMocks } from "../../mocks/storesMocks";
 
 /*
     Tela de Feed

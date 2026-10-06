@@ -31,8 +31,8 @@ export default function StoreProfile() {
             name: dados.nome,
             description: dados.descricao,
             address: enderecoFormatado,
-            whatsapp: dados.telefone,         // Corrigido: Guarda o WhatsApp
-            instagram: dados.link_instagram   // Corrigido: Guarda o Instagram
+            whatsapp: dados.telefone,
+            instagram: dados.link_instagram
           });
 
           if (dados.avaliacoes && dados.avaliacoes.length > 0) {
@@ -49,27 +49,52 @@ export default function StoreProfile() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleSendReview = () => {
+  const handleSendReview = async () => {
     if (!userComment.trim()) {
       Alert.alert('Ops!', 'Escreva um comentário antes de cravar seu alfinete.');
       return;
     }
 
-    const newReview = {
-      id: Date.now().toString(),
-      name: 'Você',
-      rating: userRating,
-      text: userComment
+    const payload = {
+      brecho_id: id,
+      usuario_id: 1, 
+      usuario_nome: 'Você',
+      nota: userRating,
+      comentario: userComment
     };
 
-    setReviews([newReview, ...reviews]);
-    setUserComment('');
-    setUserRating(5);
-    
-    Alert.alert(
-      'Alfinetada enviada com sucesso! 📌',
-      'Muito obrigado por contribuir! Sua opinião ficou afiada e já está costurada no mural da comunidade!'
-    );
+    try {
+      const resposta = await fetch('https://alfinete.alwaysdata.net/avaliacoes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resposta.ok) {
+        throw new Error('Falha ao enviar a avaliação');
+      }
+
+      const newReview = {
+        id: Date.now().toString(),
+        name: 'Você',
+        rating: userRating,
+        text: userComment
+      };
+
+      setReviews([newReview, ...reviews]);
+      setUserComment('');
+      setUserRating(5);
+      
+      Alert.alert(
+        'Alfinetada enviada com sucesso! 📌',
+        'Muito obrigado por contribuir! Sua opinião ficou afiada e já está costurada no mural da comunidade!'
+      );
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível enviar a sua avaliação para o servidor.');
+      console.error(error);
+    }
   };
 
   const openApp = (type) => {
@@ -77,16 +102,17 @@ export default function StoreProfile() {
 
     if (type === 'whatsapp') {
       const numero = store.whatsapp; 
-      if (numero) {
+      if (numero && numero !== 'null' && numero.trim() !== '') {
         const numeroLimpo = String(numero).replace(/\D/g, ''); 
         const urlFinal = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
         Linking.openURL(`https://wa.me/${urlFinal}`);
       } else {
         Alert.alert('Aviso', 'Este brechó não disponibilizou um contacto de WhatsApp.');
       }
+      
     } else if (type === 'instagram') {
       const insta = store.instagram; 
-      if (insta) {
+      if (insta && insta !== 'null' && insta.trim() !== '') {
         const url = insta.startsWith('http') 
           ? insta 
           : `https://instagram.com/${insta.replace('@', '')}`;
@@ -94,6 +120,7 @@ export default function StoreProfile() {
       } else {
         Alert.alert('Aviso', 'Este brechó não disponibilizou um Instagram.');
       }
+      
     } else if (type === 'maps') {
       if (store.address && store.address !== 'Endereço não disponível') {
         const query = encodeURIComponent(store.address);
@@ -108,7 +135,7 @@ export default function StoreProfile() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       
       <View style={styles.coverContainer}>
-        <Image source={{ uri: store?.imagem || 'https://via.placeholder.com/400x250' }} style={styles.coverImage} />
+        <Image source={{ uri: 'https://via.placeholder.com/400x250' }} style={styles.coverImage} />
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Feather name="arrow-left" size={24} color="#A06D44" />
         </TouchableOpacity>
@@ -234,24 +261,28 @@ export default function StoreProfile() {
         <Text style={[styles.smallSubtitle, { marginTop: 20 }]}>COMUNIDADE</Text>
         <Text style={styles.formMainTitle}>Avaliações dos usuários do Alfinete</Text>
 
-        {reviews.map((item) => (
-          <View key={item.id} style={styles.infoCard}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.infoTitle}>{item.name}</Text>
-              <View style={{ flexDirection: 'row', gap: 2 }}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <FontAwesome 
-                    key={s} 
-                    name={s <= item.rating ? "star" : "star-o"} 
-                    size={13} 
-                    color="#D4A373" 
-                  />
-                ))}
+        {reviews.length > 0 ? (
+          reviews.map((item) => (
+            <View key={item.id} style={styles.infoCard}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.infoTitle}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', gap: 2 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <FontAwesome 
+                      key={s} 
+                      name={s <= item.rating ? "star" : "star-o"} 
+                      size={13} 
+                      color="#D4A373" 
+                    />
+                  ))}
+                </View>
               </View>
+              <Text style={styles.infoText}>{item.text}</Text>
             </View>
-            <Text style={styles.infoText}>{item.text}</Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          <Text style={{ color: '#888', marginTop: 10, marginBottom: 20 }}>Ainda não há avaliações para este brechó.</Text>
+        )}
 
       </View>
     </ScrollView>
