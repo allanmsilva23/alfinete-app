@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, ActivityIndicator } from "react-native";import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import React, { useState, useRef, useEffect } from "react";
+import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, Animated, ActivityIndicator } from "react-native";
+import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { feedStyles } from "../../components/componetsStyles/feedStyle";
 import StoreCard from "../../components/storeCard";
-import { storeMocks } from "../../mocks/storesMocks";
 
 /*
     Tela de Feed
@@ -12,12 +12,24 @@ import { storeMocks } from "../../mocks/storesMocks";
 
 export default function MainFeed() {
   const [filtroAtivo, setFiltroAtivo] = useState(null);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const logoHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [80, 35],
+    extrapolate: 'clamp'
+  });
+
+  const logoMargin = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [15, 5],
+    extrapolate: 'clamp'
+  });
   
-  // 1. Estados para os dados reais e para o loading
   const [brechos, setBrechos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 2. Fetch da listagem de brechós
   useEffect(() => {
     fetch('https://alfinete.alwaysdata.net/brechos/filtros')
       .then((response) => response.json())
@@ -42,11 +54,12 @@ export default function MainFeed() {
     <SafeAreaView style={feedStyles.safeArea}>
       <View style={feedStyles.container}>
         <View style={feedStyles.header}>
-          <Image
+          <Animated.Image
             source={require("../../assets/images/alfineteLogoAndroid.png")}
-            style={feedStyles.logo}
+            style={[feedStyles.logo, { height: logoHeight, marginBottom: logoMargin, marginTop: -45 }]}
             resizeMode="contain"
           />
+          
           <TextInput
             style={feedStyles.searchInput}
             placeholder="Buscar brechós..."
@@ -93,21 +106,26 @@ export default function MainFeed() {
         {loading ? (
           <ActivityIndicator size="large" color="#A06D44" style={{ marginTop: 50 }} />
         ) : (
-          <FlatList
-            data={brechos}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={feedStyles.listContainer}
-            renderItem={({ item }) => (
-              <StoreCard
-                id={item.id}
-                name={item.name}
-                address={item.address}
-                rating={item.rating}
-                tags={item.tags}
-              />
-            )}
-          />
+          <Animated.FlatList
+          data={brechos}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={feedStyles.listContainer}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          renderItem={({ item }) => (
+            <StoreCard
+              id={item.id}
+              name={item.name}
+              address={item.address}
+              rating={item.rating}
+              tags={item.tags}
+            />
+          )}
+        />
         )}
       </View>
     </SafeAreaView>
