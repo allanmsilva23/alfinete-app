@@ -17,7 +17,7 @@ export const feedStyles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 15,
   },
   searchInput: {
@@ -63,7 +63,6 @@ export const feedStyles = StyleSheet.create({
   },
   logo: {
     width: 120,
-    height: 40,
     marginBottom: 15,
     alignSelf: 'center',
   }
