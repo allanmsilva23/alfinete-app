@@ -47,7 +47,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="requests"
+        name="request"
         options={{
           title: 'Solicitações',
           tabBarIcon: ({ color }) => <Feather name="clipboard" size={24} color={color} />,
