@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, Animated, ActivityIndicator } from "react-native";
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from "expo-router";
 import { feedStyles } from "../../components/componetsStyles/feedStyle";
 import StoreCard from "../../components/storeCard";
 
@@ -11,6 +12,8 @@ import StoreCard from "../../components/storeCard";
 */
 
 export default function MainFeed() {
+  const router = useRouter();
+
   const [filtroAtivo, setFiltroAtivo] = useState(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -54,11 +57,37 @@ export default function MainFeed() {
     <SafeAreaView style={feedStyles.safeArea}>
       <View style={feedStyles.container}>
         <View style={feedStyles.header}>
-          <Animated.Image
-            source={require("../../assets/images/alfineteLogoAndroid.png")}
-            style={[feedStyles.logo, { height: logoHeight, marginBottom: logoMargin, marginTop: -45 }]}
-            resizeMode="contain"
-          />
+          
+          {/* Linha com a Logo e o Botão de Perfil */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Animated.Image
+              source={require("../../assets/images/alfineteLogoAndroid.png")}
+              style={[
+                feedStyles.logo, 
+                { 
+                  height: logoHeight, 
+                  marginBottom: logoMargin,
+                  marginTop: -45 
+                }
+              ]}
+              resizeMode="contain"
+            />
+            
+            {/* Novo botão de acesso ao perfil */}
+            <TouchableOpacity 
+              onPress={() => router.push('/profile')}
+              style={{ 
+                marginTop: -30, // Alinhado com a compensação da logo
+                backgroundColor: '#FFFDF9', 
+                padding: 10, 
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: '#EAE0D0'
+              }}
+            >
+              <Feather name="user" size={20} color="#A06D44" />
+            </TouchableOpacity>
+          </View>
           
           <TextInput
             style={feedStyles.searchInput}

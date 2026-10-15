@@ -78,37 +78,6 @@ export const registerStyles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontSize: 14, color: '#8A5A38' },
   eyeIcon: { padding: 5 },
-  
-  termsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 25,
-    paddingRight: 20,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#65E3C1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  checkboxActive: {
-    backgroundColor: '#FFF',
-  },
-  termsText: {
-    fontSize: 12,
-    color: '#888',
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: '#C95E42',
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
-  },
 
   registerButton: { backgroundColor: '#C95E42', paddingVertical: 16, borderRadius: 25, alignItems: 'center', marginBottom: 20 },
   registerButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
