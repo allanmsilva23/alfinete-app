@@ -116,16 +116,6 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        {/* Termos de Uso */}
-        <TouchableOpacity style={registerStyles.termsContainer} onPress={() => setAcceptedTerms(!acceptedTerms)} activeOpacity={0.8}>
-          <View style={[registerStyles.checkbox, acceptedTerms && registerStyles.checkboxActive]}>
-            {acceptedTerms && <Feather name="circle" size={12} color="#65E3C1" />}
-          </View>
-          <Text style={registerStyles.termsText}>
-            Estou de acordo com os <Text style={registerStyles.termsLink}>Termos de Uso</Text> e as <Text style={registerStyles.termsLink}>Políticas de Privacidade</Text>.
-          </Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={registerStyles.registerButton} onPress={handleRegister}>
           <Text style={registerStyles.registerButtonText}>Cadastrar</Text>
         </TouchableOpacity>
