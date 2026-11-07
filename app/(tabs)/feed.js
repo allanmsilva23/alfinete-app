@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, Animated, ActivityIndicator } from "react-native";
+import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, Animated, ActivityIndicator, Platform } from "react-native";
 import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from "expo-router";
 import { feedStyles } from "../../components/componetsStyles/feedStyle";
 import StoreCard from "../../components/storeCard";
@@ -15,6 +15,7 @@ import {useFocusEffect} from "expo-router";
 
 export default function MainFeed() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [filtroAtivo, setFiltroAtivo] = useState(null);
   const [busca,setBusca]=useState('');
@@ -62,33 +63,38 @@ export default function MainFeed() {
         <View style={feedStyles.header}>
           
           {/* Linha com a Logo e o Botão de Perfil */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start',
+            paddingTop: Platform.OS === 'ios' ? insets.top - 15 : 0 
+          }}>
             <Animated.Image
               source={require("../../assets/images/alfineteLogoAndroid.png")}
               style={[
-                feedStyles.logo, 
-                { 
-                  height: logoHeight, 
+                feedStyles.logo,
+                {
+                  height: logoHeight,
                   marginBottom: logoMargin,
                   marginTop: -45 
                 }
               ]}
               resizeMode="contain"
             />
-            
-            {/* Novo botão de acesso ao perfil */}
-            <TouchableOpacity 
+
+            <TouchableOpacity
               onPress={() => router.push('/profile')}
-              style={{ 
-                marginTop: -30, // Alinhado com a compensação da logo
-                backgroundColor: '#FFFDF9', 
-                padding: 10, 
+              style={{
+                marginTop: -40,
+                marginBottom: 10,
+                backgroundColor: '#FFFDF9',
+                padding: 10,
                 borderRadius: 20,
                 borderWidth: 1,
                 borderColor: '#EAE0D0'
               }}
             >
-              <Feather name="user" size={20} color="#A06D44" />
+              <Feather name="user" size={25} color="#A06D44" />
             </TouchableOpacity>
           </View>
           
