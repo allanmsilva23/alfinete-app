@@ -14,11 +14,13 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { fetch } from 'expo/fetch';
+import { api } from '../../src/api/client';
+import { useAuth } from '../../src/auth/AuthContext';
 import { File } from 'expo-file-system';
 
 export default function AvaliacaoPecaScreen() {
   const router = useRouter();
+  const {user} = useAuth();
 
   const params = useLocalSearchParams();
 
@@ -175,6 +177,8 @@ export default function AvaliacaoPecaScreen() {
   // =========================================================
 
   const handleEnviarTudo = async () => {
+    if (!user) { Alert.alert('Login necessário','Faça login para enviar peças.',[{text:'Entrar',onPress:()=>router.push('/')}]);return; }
+    if (user.tipo_conta !== 'cliente') {Alert.alert('Acesso restrito','Somente clientes podem enviar peças.');return;}
     if (pecasAdicionadas.length === 0) {
       Alert.alert(
         'Nenhuma peça',
@@ -206,11 +210,6 @@ export default function AvaliacaoPecaScreen() {
         // =====================================================
         // CAMPOS DE TEXTO
         // =====================================================
-
-        formData.append(
-          'usuario_id',
-          '1'
-        );
 
         formData.append(
           'brecho_id',
@@ -308,31 +307,7 @@ export default function AvaliacaoPecaScreen() {
           peca.categoria
         );
 
-        const resposta = await fetch(
-          'https://alfinete.alwaysdata.net/solicitacoes',
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
-
-        const textoResposta = await resposta.text();
-
-        console.log(
-          'Status da API:',
-          resposta.status
-        );
-
-        console.log(
-          'Resposta da API:',
-          textoResposta
-        );
-
-        if (!resposta.ok) {
-          throw new Error(
-            `Servidor retornou ${resposta.status}: ${textoResposta}`
-          );
-        }
+        await api('/solicitacoes', {method:'POST',body:formData});
       }
 
       const quantidade =
@@ -345,7 +320,7 @@ export default function AvaliacaoPecaScreen() {
         'Sucesso! 🎉',
         `Você enviou ${quantidade} peça(s) para avaliação!\n\nO brechó ${
           storeName || ''
-        } entrará em contato pelo chat em breve.`,
+        } analisará sua solicitação. Acompanhe o status na aba Solicitações.`,
         [
           {
             text: 'Voltar ao Brechó',

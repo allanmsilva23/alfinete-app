@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from "expo-router";
 import { feedStyles } from "../../components/componetsStyles/feedStyle";
 import StoreCard from "../../components/storeCard";
+import {api,safeImageUrl} from "../../src/api/client";
+import {useFocusEffect} from "expo-router";
 
 /*
     Tela de Feed
@@ -15,6 +17,11 @@ export default function MainFeed() {
   const router = useRouter();
 
   const [filtroAtivo, setFiltroAtivo] = useState(null);
+  const [busca,setBusca]=useState('');
+  const [estilo,setEstilo]=useState('');
+  const [preco,setPreco]=useState('');
+  const [notaMin,setNotaMin]=useState(0);
+  const [erro,setErro]=useState('');
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -33,26 +40,22 @@ export default function MainFeed() {
   const [brechos, setBrechos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('https://alfinete.alwaysdata.net/brechos/filtros')
-      .then((response) => response.json())
-      .then((json) => {
-        if (json.sucesso) {
-          // Mapeando as chaves do Back-end para as props que o StoreCard espera
-          const dadosMapeados = json.dados.map((loja) => ({
-            id: loja.id.toString(),
-            name: loja.nome,
-            address: loja.endereco_curto,
-            rating: 5.0,
-            tags: loja.estilos,
-          }));
-          setBrechos(dadosMapeados);
-        }
-      })
-      .catch((error) => console.error("Erro ao buscar brechós:", error))
-      .finally(() => setLoading(false));
-  }, []);
-
+  useFocusEffect(React.useCallback(() => {
+    let active=true;setLoading(true);
+    api('/brechos/filtros',{auth:false}).then(rows=>{if(active){setBrechos((rows||[]).map(loja=>({
+      id:String(loja.id),name:loja.nome,address:loja.endereco_curto,
+      rating:loja.nota_media!=null?Number(loja.nota_media):null,
+      reviewCount:loja.total_avaliacoes,
+      tags:Array.isArray(loja.estilos)?loja.estilos:[],
+      image:safeImageUrl(loja.imagem),preco:loja.faixa_preco||''
+    })));setErro('');}}).catch(e=>{if(active)setErro(e.message);}).finally(()=>{if(active)setLoading(false);});
+    return ()=>{active=false;};
+  },[]));
+  const estilos=[...new Set(brechos.flatMap(b=>b.tags))];
+  const precos=[...new Set(brechos.map(b=>b.preco).filter(Boolean))];
+  const filtered=brechos.filter(b=>b.name.toLowerCase().includes(busca.trim().toLowerCase()) &&
+    (!estilo||b.tags.includes(estilo)) && (!preco||b.preco===preco) &&
+    (!notaMin||Number(b.rating||0)>=notaMin));
   return (
     <SafeAreaView style={feedStyles.safeArea}>
       <View style={feedStyles.container}>
@@ -92,6 +95,8 @@ export default function MainFeed() {
           <TextInput
             style={feedStyles.searchInput}
             placeholder="Buscar brechós..."
+            value={busca}
+            onChangeText={setBusca}
             placeholderTextColor="#888"
           />
         </View>
@@ -131,13 +136,21 @@ export default function MainFeed() {
           </ScrollView>
         </View>
 
-        {/* 3. Indicador de Carregamento ou Lista Real */}
+        {filtroAtivo && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{padding:10,gap:8,alignItems:'center'}}>
+          <TouchableOpacity onPress={()=>{setEstilo('');setPreco('');setNotaMin(0);setFiltroAtivo(null);}} style={{padding:10,backgroundColor:'#FFFDF9',borderRadius:20}}><Text>Limpar</Text></TouchableOpacity>
+          {(filtroAtivo==='estilo'?estilos:filtroAtivo==='preco'?precos:[1,2,3,4,5]).map(item=><TouchableOpacity key={String(item)} style={{backgroundColor:'#FFFDF9',padding:10,borderRadius:20,borderColor:'#EAE0D0',borderWidth:1}}
+            onPress={()=>{if(filtroAtivo==='estilo')setEstilo(estilo===item?'':item);else if(filtroAtivo==='preco')setPreco(preco===item?'':item);else setNotaMin(notaMin===item?0:item);setFiltroAtivo(null);}}>
+            <Text style={{color:'#8A5A38'}}>{filtroAtivo==='nota'?`${item}+ estrelas`:item}</Text></TouchableOpacity>)}
+        </ScrollView>}
+        {!!erro&&<Text style={{color:'#C95E42',padding:10}}>{erro}</Text>}
+        {/* Lista de brechós reais aprovados */}
         {loading ? (
           <ActivityIndicator size="large" color="#A06D44" style={{ marginTop: 50 }} />
         ) : (
           <Animated.FlatList
-          data={brechos}
+          data={filtered}
           keyExtractor={(item) => item.id}
+          ListEmptyComponent={<Text style={{textAlign:'center',color:'#8A5A38',padding:20}}>Nenhum brechó encontrado.</Text>}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={feedStyles.listContainer}
           onScroll={Animated.event(
@@ -152,6 +165,8 @@ export default function MainFeed() {
               address={item.address}
               rating={item.rating}
               tags={item.tags}
+              image={item.image}
+              reviewCount={item.reviewCount}
             />
           )}
         />

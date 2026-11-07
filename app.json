@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alfinete.app"
@@ -19,9 +18,9 @@
         "backgroundImage": "./assets/images/backgroundAlfineteLogoAndroid.png",
         "monochromeImage": "./assets/images/alfineteLogoBWAndroid.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.alfinete.app"
+      "package": "com.alfinete.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static"
@@ -43,7 +42,9 @@
       "expo-font",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

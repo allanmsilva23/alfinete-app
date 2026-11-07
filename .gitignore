@@ -6,6 +6,7 @@ node_modules/
 firebase-key.json
 google-services.json
 GoogleService-Info.plist
+expo-config-check.json
 
 # Expo
 .expo/
