@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +17,17 @@ import { feedStyles } from '../../components/componetsStyles/feedStyle';
 import StoreCard from '../../components/storeCard';
 import { api, safeImageUrl } from '../../src/api/client';
 import { useAuth } from '../../src/auth/AuthContext';
+=======
+import React, { useState, useRef, useEffect } from "react";
+import { FlatList, ScrollView, Text, TextInput, View, TouchableOpacity, Image, Animated, ActivityIndicator, Platform } from "react-native";
+import { Feather, Ionicons, FontAwesome } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from "expo-router";
+import { feedStyles } from "../../components/componetsStyles/feedStyle";
+import StoreCard from "../../components/storeCard";
+import {api,safeImageUrl} from "../../src/api/client";
+import {useFocusEffect} from "expo-router";
+>>>>>>> 052f1bad155dd930d3791cc9874b4ec443d31b73
 
 // Categorias existentes no catálogo de estilos do Alfinete.
 // Categorias sem brechós associados aparecem desabilitadas.
@@ -78,7 +90,33 @@ const dentroDaFaixa = (brecho, faixa) => Boolean(
 
 export default function MainFeed() {
   const router = useRouter();
+<<<<<<< HEAD
   const { user, ready } = useAuth();
+=======
+  const insets = useSafeAreaInsets();
+
+  const [filtroAtivo, setFiltroAtivo] = useState(null);
+  const [busca,setBusca]=useState('');
+  const [estilo,setEstilo]=useState('');
+  const [preco,setPreco]=useState('');
+  const [notaMin,setNotaMin]=useState(0);
+  const [erro,setErro]=useState('');
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const logoHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [80, 35],
+    extrapolate: 'clamp'
+  });
+
+  const logoMargin = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [15, 5],
+    extrapolate: 'clamp'
+  });
+  
+>>>>>>> 052f1bad155dd930d3791cc9874b4ec443d31b73
   const [brechos, setBrechos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
@@ -197,6 +235,7 @@ export default function MainFeed() {
     <SafeAreaView style={feedStyles.safeArea}>
       <View style={feedStyles.container}>
         <View style={feedStyles.header}>
+<<<<<<< HEAD
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Animated.Image
               source={require('../../assets/images/alfineteLogoAndroid.png')}
@@ -213,6 +252,42 @@ export default function MainFeed() {
                   resizeMode="cover" style={{ width: 42, height: 42, borderRadius: 21 }}
                   onError={() => setFotoFalhou(true)} />
               ) : <Feather name="user" size={20} color="#A06D44" />}
+=======
+          
+          {/* Linha com a Logo e o Botão de Perfil */}
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start',
+            paddingTop: Platform.OS === 'ios' ? insets.top - 15 : 0 
+          }}>
+            <Animated.Image
+              source={require("../../assets/images/alfineteLogoAndroid.png")}
+              style={[
+                feedStyles.logo,
+                {
+                  height: logoHeight,
+                  marginBottom: logoMargin,
+                  marginTop: -45 
+                }
+              ]}
+              resizeMode="contain"
+            />
+
+            <TouchableOpacity
+              onPress={() => router.push('/profile')}
+              style={{
+                marginTop: -40,
+                marginBottom: 10,
+                backgroundColor: '#FFFDF9',
+                padding: 10,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: '#EAE0D0'
+              }}
+            >
+              <Feather name="user" size={25} color="#A06D44" />
+>>>>>>> 052f1bad155dd930d3791cc9874b4ec443d31b73
             </TouchableOpacity>
           </View>
           <TextInput style={feedStyles.searchInput} placeholder="Buscar brechós..."
