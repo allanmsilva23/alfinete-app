@@ -1,21 +1,13 @@
-// Arquivo novo na raiz do frontend. Preserva o app.json atual.
-// Usar CHAVES DIFERENTES para Android e iOS em producao (restricoes Google Cloud).
 export default ({ config }) => {
-  const common = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
-  const androidKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY || common;
-  const iosKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY || common;
-
+  const otherPlugins = (config.plugins || []).filter(entry => {
+    const name = Array.isArray(entry) ? entry[0] : entry;
+    return !['@maplibre/maplibre-react-native', 'react-native-maps', 'expo-location'].includes(name);
+  });
   return {
     ...config,
     plugins: [
-      ...(config.plugins || []).filter(entry => {
-        const name = Array.isArray(entry) ? entry[0] : entry;
-        return name !== 'react-native-maps' && name !== 'expo-location';
-      }),
-      ['react-native-maps', {
-        androidGoogleMapsApiKey: androidKey,
-        iosGoogleMapsApiKey: iosKey,
-      }],
+      ...otherPlugins,
+      '@maplibre/maplibre-react-native',
       ['expo-location', {
         locationWhenInUsePermission: 'Permita que o Alfinete encontre brechós próximos de você.',
       }],

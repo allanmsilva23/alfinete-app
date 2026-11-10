@@ -99,9 +99,6 @@ export default function ResetPassword() {
               <TouchableOpacity style={[styles.button, busy && { opacity: 0.6 }]} onPress={save} disabled={busy}>
                 {busy ? <ActivityIndicator color="#FFF"/> : <><Text style={styles.buttonText}>Salvar nova senha</Text><Feather name="check" color="#FFF" size={19}/></>}
               </TouchableOpacity>
-              <TouchableOpacity style={{ alignItems:'center',paddingTop:19 }} onPress={() => {clearResetToken();router.replace('/forgot-password');}}>
-                <Text style={{ color: colors.main, fontWeight:'700', fontSize:13 }}>Solicitar outro código</Text>
-              </TouchableOpacity>
             </View>
           </>}
         </ScrollView>

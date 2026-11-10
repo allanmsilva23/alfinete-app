@@ -1,328 +1,449 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Linking, Platform, StyleSheet,
-  Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text,
+  TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
-import { api, safeImageUrl } from '../../src/api/client';
+import { api } from '../../src/api/client';
+import { boundsOf, distanceLabel, norm, storesWithCoords } from '../../src/maps/geo';
+import { BASE_STYLE_URL, loadAlfineteStyle } from '../../src/maps/alfineteStyle';
 
-// Alfinete: porta da lógica do Flutter PontosColetaPage, não do backend da Ria Green.
-const COLORS = {
-  terracotta: '#B84D3D', brown: '#8E7756', cream: '#FBF3E7',
-  muted: '#A99886', mint: '#6FE7CD', white: '#FFFFFF', ground: '#E9EEE3',
+const COLOR = {
+  terracotta: '#B84D3D', brown: '#8E7756', ground: '#E9EEE3',
+  cream: '#FBF3E7', gold: '#D8B551', mint: '#6FE7CD',
+  muted: '#B3A28F', white: '#FFFFFF', border: '#DFD7C8',
 };
-const FALLBACK = { latitude: -23.55052, longitude: -46.63331, latitudeDelta: 0.055, longitudeDelta: 0.055 };
-const NUMBER = n => Number(n);
-const validPoint = (lat, lng) => lat !== null && lat !== undefined && lng !== null && lng !== undefined &&
-  Number.isFinite(NUMBER(lat)) && Number.isFinite(NUMBER(lng)) &&
-  Math.abs(NUMBER(lat)) <= 90 && Math.abs(NUMBER(lng)) <= 180;
-const rad = v => v * Math.PI / 180;
-function metersBetween(a, b) {
-  const dl = rad(b.latitude - a.latitude);
-  const dg = rad(b.longitude - a.longitude);
-  const h = Math.sin(dl / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dg / 2) ** 2;
-  return 12742000 * Math.asin(Math.min(1, Math.sqrt(Math.max(0, h))));
-}
-const distanceText = meters => meters == null ? 'Distância indisponível' :
-  meters < 1000 ? `${Math.round(meters)} m em linha reta` :
-  `${(meters / 1000).toFixed(1).replace('.', ',')} km em linha reta`;
-const normalized = str => String(str ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const FALLBACK = { latitude: -23.55052, longitude: -46.63331 };
 
-// Mesmo fluxo robusto do Flutter: permissão -> posição atual com limite -> última posição.
-// Não bloqueia o catálogo quando o GPS é negado ou a leitura falha.
-async function requestPosition() {
-  const enabled = await Location.hasServicesEnabledAsync().catch(() => false);
-  const currentPermission = await Location.getForegroundPermissionsAsync();
-  const permission = currentPermission.granted ? currentPermission :
-    await Location.requestForegroundPermissionsAsync();
-  if (!permission.granted) return { coords: null, permission: 'denied' };
-
-  const last = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000, requiredAccuracy: 2000 }).catch(() => null);
-  if (!enabled) {
-    return { coords: last?.coords ? { latitude: last.coords.latitude, longitude: last.coords.longitude } : null,
-      permission: 'gps-off' };
-  }
-
-  // Versões do expo-location podem não aceitar timeout por parâmetro: aplica corrida segura.
-  // O timeout resolve o carregamento da interface, sem interromper a chamada nativa.
-  const fresh = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-    .then(value => value?.coords ?? null).catch(() => null);
-  const received = await Promise.race([
-    fresh,
-    new Promise(resolve => setTimeout(() => resolve(null), 10000)),
-  ]);
-  const source = received || last?.coords;
-  return { coords: source ? { latitude: source.latitude, longitude: source.longitude } : null,
-    permission: source ? 'granted' : 'unavailable' };
+async function obtainLocation() {
+  const current = await Location.getForegroundPermissionsAsync();
+  const permission = current.granted ? current : await Location.requestForegroundPermissionsAsync();
+  if (!permission.granted) return { coords: null, allowed: false };
+  const last = await Location.getLastKnownPositionAsync({ maxAge: 300000, requiredAccuracy: 1500 }).catch(() => null);
+  const servicesOn = await Location.hasServicesEnabledAsync().catch(() => false);
+  if (!servicesOn) return { coords: last?.coords || null, allowed: true };
+  let timeoutId;
+  const fresh = await Promise.race([
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
+    new Promise(resolve => { timeoutId = setTimeout(() => resolve(null), 8500); }),
+  ]).finally(() => clearTimeout(timeoutId));
+  return { coords: fresh?.coords || last?.coords || null, allowed: true };
 }
 
-function nativeGoogleMapsUrl(store) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${store.latitude},${store.longitude}`)}&travelmode=driving`;
+function StorePin({ selected }) {
+  return (
+    <View style={styles.storePinWrap} collapsable={false}>
+      <View style={[styles.pinDiamond, selected && styles.pinSelected]}>
+        <View style={styles.pinIconRotate}>
+          <MaterialCommunityIcons name="tshirt-crew" size={17} color="#FFFFFF" />
+        </View>
+      </View>
+    </View>
+  );
+}
+function UserPin() {
+  return (
+    <View style={styles.userPulseArea} collapsable={false}>
+      <View style={styles.pulseBig} />
+      <View style={styles.pulseSmall} />
+      <View style={styles.userDot}><View style={styles.userWhiteDot} /></View>
+    </View>
+  );
+}
+function StoreBubble({ store, onOpen, onRoute }) {
+  return (
+    <View style={styles.bubbleWrap} collapsable={false}>
+      <View style={styles.bubble}>
+        <View style={styles.bubbleIcon}>
+          <MaterialCommunityIcons name="shopping" size={19} color={COLOR.gold} />
+        </View>
+        <Pressable onPress={onOpen} style={styles.bubbleInfo}>
+          <Text style={styles.bubbleName} numberOfLines={2}>{store.nome}</Text>
+          <Text style={styles.bubbleSub} numberOfLines={2}>
+            {distanceLabel(store.distanceMeters)}{store.estilos ? ` · ${store.estilos}` : ''}
+          </Text>
+        </Pressable>
+        <Pressable onPress={onRoute} accessibilityLabel="Traçar rota para este brechó" style={styles.bubbleRoute}>
+          <Feather name="navigation" size={16} color={COLOR.terracotta} />
+        </Pressable>
+      </View>
+      <View style={styles.bubbleCaret} />
+    </View>
+  );
 }
 
 export default function MapScreen() {
   const router = useRouter();
+  const cameraRef = useRef(null);
   const mapRef = useRef(null);
-  const regionRef = useRef(FALLBACK);
-  const mounted = useRef(false);
+  const initialCameraDone = useRef(false);
+  const [styleDefinition, setStyleDefinition] = useState(BASE_STYLE_URL);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState('');
+  const [mapKey, setMapKey] = useState(0);
+  const nativeRenderLogged = useRef(false);
+  const [zoom, setZoom] = useState(15);
   const [stores, setStores] = useState([]);
-  const [coords, setCoords] = useState(null);
-  const [permission, setPermission] = useState('unknown');
-  const [query, setQuery] = useState('');
+  const [position, setPosition] = useState(null);
+  const [permissionOK, setPermissionOK] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const [busy, setBusy] = useState(true);
-  const [statusText, setStatusText] = useState('Preparando mapa...');
-  const [reload, setReload] = useState(0);
-  const [mapReady, setMapReady] = useState(false);
-  const [tilesLoaded, setTilesLoaded] = useState(false);
-  const [mapTimedOut, setMapTimedOut] = useState(false);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
+  const [revision, setRevision] = useState(0);
 
-  const loadAll = useCallback(async active => {
-    if (!active()) return;
-    setBusy(true); setStatusText('Verificando localização...');
-    // Diferente do fluxo antigo, aguarda posição antes de classificar brechós.
-    let position = { coords: null, permission: 'unavailable' };
-    try { position = await requestPosition(); }
-    catch (err) { console.warn('[ALFINETE/MAPA] localização:', err?.message); }
-    if (!active()) return;
-    setCoords(position.coords); setPermission(position.permission);
-    setStatusText('Buscando brechós aprovados...');
-    try {
-      const result = await api('/brechos/mapa', { auth: false });
-      if (!active()) return;
-      const list = Array.isArray(result) ? result :
-        Array.isArray(result?.brechos) ? result.brechos :
-        Array.isArray(result?.data) ? result.data : [];
-      setStores(list);
-      console.log('[ALFINETE/MAPA] brechós recebidos:', list.length);
-      setStatusText('');
-    } catch (err) {
-      if (active()) setStatusText(err?.message || 'Falha ao carregar brechós.');
-    } finally {
-      if (active()) setBusy(false);
-    }
+  // Basemap verdadeiro com cores ajustadas ao Figma; mantém a URL oficial como fallback.
+  useEffect(() => {
+    let active = true;
+    loadAlfineteStyle()
+      .then(next => { if (active) { initialCameraDone.current = false; setMapLoaded(false); setStyleDefinition(next); } })
+      .catch(e => console.warn('[ALFINETE/MAPLIBRE] Estilo personalizado indisponível, usando Positron:', e?.message));
+    return () => { active = false; };
   }, []);
 
+  const load = useCallback(async isActive => {
+    if (isActive()) { setLoading(true); setDataError(''); }
+    const [places, gps] = await Promise.allSettled([
+      api('/brechos/mapa', { auth: false }),
+      obtainLocation(),
+    ]);
+    if (!isActive()) return;
+    if (places.status === 'fulfilled') {
+      const response = places.value;
+      const list = Array.isArray(response) ? response :
+        Array.isArray(response?.brechos) ? response.brechos :
+          Array.isArray(response?.data) ? response.data : [];
+      setStores(list);
+    } else {
+      setStores([]);
+      setDataError(places.reason?.message || 'Não foi possível consultar os brechós.');
+    }
+    if (gps.status === 'fulfilled') {
+      const { coords, allowed } = gps.value;
+      setPosition(coords && Number.isFinite(coords.latitude) && Number.isFinite(coords.longitude)
+        ? { latitude: coords.latitude, longitude: coords.longitude } : null);
+      setPermissionOK(allowed);
+    } else {
+      setPosition(null);
+      setPermissionOK(false);
+    }
+    setLoading(false);
+  }, []);
   useFocusEffect(useCallback(() => {
     let active = true;
-    mounted.current = true;
-    loadAll(() => active);
-    return () => { active = false; mounted.current = false; };
-  }, [loadAll, reload]));
+    load(() => active);
+    return () => { active = false; };
+  }, [load, revision]));
 
-  // onMapReady significa criação da view, não recebimento das ruas.
   useEffect(() => {
-    if (!mapReady || tilesLoaded) return undefined;
-    const t = setTimeout(() => {
-      if (mounted.current && !tilesLoaded) {
-        setMapTimedOut(true);
-        console.warn('[ALFINETE/MAPA] onMapReady sem onMapLoaded: conferir SDK/chave/rede.');
-      }
-    }, 15000);
-    return () => clearTimeout(t);
-  }, [mapReady, tilesLoaded]);
+    if (mapLoaded) return undefined;
+    const timer = setTimeout(() => {
+      setMapError(current => current || 'O mapa ainda não terminou de carregar. Verifique a internet e tente novamente.');
+    }, 13000);
+    return () => clearTimeout(timer);
+  }, [mapLoaded, mapKey, styleDefinition]);
 
-  const points = useMemo(() => stores.filter(s => validPoint(s.latitude, s.longitude))
-    .map(s => {
-      const position = { latitude: NUMBER(s.latitude), longitude: NUMBER(s.longitude) };
-      return { ...s, ...position, distanceMeters: coords ? metersBetween(coords, position) : null };
-    }).sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity) ||
-      String(a.nome ?? '').localeCompare(String(b.nome ?? ''))), [stores, coords]);
-
+  const sorted = useMemo(() => storesWithCoords(stores, position), [stores, position]);
   const visible = useMemo(() => {
-    const value = normalized(query);
-    return value ? points.filter(s => normalized([s.nome, s.endereco_curto, s.bairro, s.cidade, s.estilos].join(' ')).includes(value)) : points;
-  }, [query, points]);
+    const q = norm(search);
+    return !q ? sorted : sorted.filter(b => norm([
+      b.nome, b.endereco_curto, b.bairro, b.cidade,
+      typeof b.estilos === 'string' ? b.estilos : JSON.stringify(b.estilos || ''),
+    ].join(' ')).includes(q));
+  }, [sorted, search]);
   const selected = visible.find(s => String(s.id) === String(selectedId)) || visible[0] || null;
+  const searchValue = norm(search);
 
-  const moveTo = useCallback((target, delta = 0.018) => {
-    if (!target || !mapReady || !mapRef.current) return;
-    try {
-      mapRef.current.animateToRegion({ latitude: target.latitude, longitude: target.longitude,
-        latitudeDelta: delta, longitudeDelta: delta }, 550);
-    } catch (err) { console.warn('[ALFINETE/MAPA] animação:', err?.message); }
-  }, [mapReady]);
+  const centerOn = useCallback((p, newZoom = 15.5) => {
+    if (!p || !mapLoaded) return;
+    cameraRef.current?.easeTo({
+      center: [Number(p.longitude), Number(p.latitude)],
+      zoom: newZoom, duration: 650,
+      padding: { top: 110, right: 40, bottom: 175, left: 40 },
+    });
+  }, [mapLoaded]);
 
-  // Flutter enquadra usuário + estabelecimento mais próximo; aplicamos o mesmo princípio.
+  const focusSearchResult = useCallback(() => {
+    if (!mapLoaded || !searchValue || !visible.length) return;
+    const found = visible[0];
+    setSelectedId(found.id);
+    centerOn(found, 16.2);
+  }, [mapLoaded, searchValue, visible, centerOn]);
+
   useEffect(() => {
-    if (!mapReady || !tilesLoaded || busy || !mapRef.current) return;
-    const nearest = visible.slice(0, 4).map(s => ({ latitude: s.latitude, longitude: s.longitude }));
-    const bounds = coords ? [coords, ...nearest] : nearest;
-    if (bounds.length > 1) {
-      try {
-        mapRef.current.fitToCoordinates(bounds, { edgePadding: { top: 140, right: 45, bottom: 260, left: 45 }, animated: true });
-      } catch (err) { console.warn('[ALFINETE/MAPA] enquadramento:', err?.message); }
-    } else if (bounds.length === 1) moveTo(bounds[0], 0.03);
-  }, [mapReady, tilesLoaded, busy, coords?.latitude, coords?.longitude, visible, moveTo]);
+    if (!searchValue || !mapLoaded || loading || !visible.length) return undefined;
+    const timer = setTimeout(focusSearchResult, 350);
+    return () => clearTimeout(timer);
+  }, [searchValue, mapLoaded, loading, visible, focusSearchResult]);
 
-  const refresh = () => setReload(n => n + 1);
-  const recenter = async () => {
-    const current = await requestPosition().catch(() => ({ coords: null, permission: 'unavailable' }));
-    setPermission(current.permission);
-    if (!current.coords) {
-      Alert.alert('Localização indisponível', 'Ative o GPS e a permissão de localização. Você ainda pode consultar os brechós.');
+  // Enquadra posição e até três brechós perto quando não há busca ativa.
+  useEffect(() => {
+    if (searchValue || !mapLoaded || loading || initialCameraDone.current) return;
+    const near = position && visible.length
+      ? visible.filter(b => b.distanceMeters <= Math.max(1600, visible[0].distanceMeters * 1.4)).slice(0, 4)
+      : visible.slice(0, 3);
+    const points = position ? [position, ...near] : near;
+    if (!points.length) return;
+    initialCameraDone.current = true;
+    const [west, south, east, north] = boundsOf(points);
+    if (Math.max(east - west, north - south) < 0.0001) {
+      centerOn(position || near[0], 15.5);
       return;
     }
-    setCoords(current.coords);
-    moveTo(current.coords, 0.024);
+    cameraRef.current?.fitBounds([west, south, east, north], {
+      padding: { top: 135, right: 54, bottom: 170, left: 54 },
+      duration: 750,
+    });
+  }, [mapLoaded, loading, position, visible, centerOn, searchValue]);
+
+  const openStoreProfile = b => {
+    if (!b?.id) return;
+    router.push(`/store/${encodeURIComponent(String(b.id))}`);
   };
-  const zoom = factor => {
-    const region = regionRef.current;
-    moveTo(region, Math.max(0.002, Math.min(0.8, region.latitudeDelta * factor)));
+  const updateSearch = value => {
+    setSearch(value);
+    setSelectedId(null);
+    if (!norm(value)) initialCameraDone.current = false;
   };
-  const openRoute = async store => {
-    try { await Linking.openURL(nativeGoogleMapsUrl(store)); }
+  const openRoute = async b => {
+    if (!b) return;
+    const destination = `${b.latitude},${b.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+    try { await Linking.openURL(url); }
     catch { Alert.alert('Rota indisponível', 'Não foi possível abrir o Google Maps.'); }
   };
-  const openExternalMap = async () => {
-    const target = selected || coords;
-    const url = target ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${target.latitude},${target.longitude}`)}` :
-      'https://www.google.com/maps';
-    try { await Linking.openURL(url); } catch { Alert.alert('Erro', 'Não foi possível abrir o mapa externo.'); }
+  const recenter = async () => {
+    try {
+      const gps = await obtainLocation();
+      setPermissionOK(gps.allowed);
+      if (!gps.coords) {
+        return Alert.alert('Localização indisponível', 'Ative o GPS e a permissão de localização para centralizar o mapa.');
+      }
+      const coords = { latitude: gps.coords.latitude, longitude: gps.coords.longitude };
+      setPosition(coords);
+      centerOn(coords, 15.5);
+    } catch {
+      Alert.alert('Localização indisponível', 'Verifique a configuração do GPS e tente novamente.');
+    }
+  };
+  const changeZoom = async delta => {
+    const current = await mapRef.current?.getZoom().catch(() => zoom);
+    const next = Math.max(5, Math.min(19, (Number.isFinite(current) ? current : zoom) + delta));
+    cameraRef.current?.zoomTo(next, { duration: 260 });
+    setZoom(next);
+  };
+  const reload = () => {
+    initialCameraDone.current = false;
+    setRevision(v => v + 1);
+  };
+  const onMapFailure = () => {
+    if (typeof styleDefinition !== 'string') {
+      initialCameraDone.current = false;
+      setMapLoaded(false);
+      setStyleDefinition(BASE_STYLE_URL);
+      return;
+    }
+    setMapError('Não foi possível carregar os dados cartográficos. Verifique sua conexão e tente novamente.');
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.fill}>
-        <MapView
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <View style={styles.mapArea}>
+        <Map
+          key={mapKey}
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
-          provider={PROVIDER_GOOGLE}
-          mapType="standard"
-          initialRegion={FALLBACK}
-          showsBuildings={false}
-          showsTraffic={false}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          toolbarEnabled={false}
-          onMapReady={() => { console.log('[ALFINETE/MAPA] onMapReady'); setMapReady(true); }}
-          onMapLoaded={() => { console.log('[ALFINETE/MAPA] onMapLoaded'); setTilesLoaded(true); setMapTimedOut(false); }}
-          onRegionChangeComplete={r => { if (r) regionRef.current = r; }}
+          mapStyle={styleDefinition}
+          androidView="texture"
+          compass={false}
+          logo={false}
+          attribution={true}
+          attributionPosition={{ bottom: 79, left: 10 }}
+          onDidFinishLoadingStyle={() => { setMapLoaded(true); setMapError(''); }}
+          onDidFailLoadingMap={onMapFailure}
+          onDidFinishRenderingMapFully={() => {
+            if (!nativeRenderLogged.current) {
+              nativeRenderLogged.current = true;
+              console.log('[ALFINETE/MAPLIBRE] renderização cartográfica concluída');
+            }
+          }}
+          onRegionDidChange={event => {
+            const currentZoom = event?.nativeEvent?.zoom;
+            if (Number.isFinite(currentZoom)) setZoom(currentZoom);
+          }}
         >
-          {coords && <>
-            <Circle center={coords} radius={90} strokeWidth={0} fillColor="rgba(111,231,205,0.22)" />
-            <Marker coordinate={coords} anchor={{ x: 0.5, y: 0.5 }} title="Você está aqui">
-              <View style={styles.userMarker}><View style={styles.userCenter} /></View>
+          <Camera ref={cameraRef} initialViewState={{
+            center: [FALLBACK.longitude, FALLBACK.latitude], zoom: 13.8,
+          }} />
+          {position && (
+            <Marker id="alfinete-user" lngLat={[position.longitude, position.latitude]} anchor="center">
+              <UserPin />
             </Marker>
-          </>}
-          {visible.map(store => (
-            <Marker key={String(store.id)} coordinate={{ latitude: store.latitude, longitude: store.longitude }}
-              anchor={{ x: 0.5, y: 1 }} onPress={() => { setSelectedId(store.id); moveTo(store, 0.018); }}
-              title={store.nome ?? 'Brechó'}>
-              <View style={styles.pin}><MaterialCommunityIcons name="tshirt-crew" color="white" size={20} /></View>
+          )}
+          {visible.map(b => (
+            <Marker
+              key={`store-${b.id}`}
+              id={`alfinete-store-${b.id}`}
+              lngLat={[b.longitude, b.latitude]}
+              anchor="bottom"
+              onPress={() => openStoreProfile(b)}
+            >
+              <StorePin selected={selected && String(selected.id) === String(b.id)} />
             </Marker>
           ))}
-          {coords && selected && <Polyline
-            coordinates={[coords, { latitude: selected.latitude, longitude: selected.longitude }]}
-            strokeColor={COLORS.terracotta} strokeWidth={2} lineDashPattern={[9, 7]} />}
-        </MapView>
+          {selected && (
+            <Marker
+              key={`alfinete-bubble-${selected.id}`}
+              id={`alfinete-bubble-${selected.id}`}
+              lngLat={[selected.longitude, selected.latitude]}
+              anchor="top"
+              offset={[0, 18]}
+              onPress={() => openStoreProfile(selected)}
+            >
+              <StoreBubble store={selected} onOpen={() => openStoreProfile(selected)}
+                onRoute={() => openRoute(selected)} />
+            </Marker>
+          )}
+        </Map>
 
         <View style={styles.searchArea}>
           <View style={styles.searchBox}>
-            <Feather name="search" size={21} color="#D8B551" />
-            <TextInput style={styles.searchInput} value={query} onChangeText={setQuery}
-              placeholder="Buscar brechós..." placeholderTextColor="#BBA994" />
-            <TouchableOpacity onPress={query ? () => setQuery('') : refresh} accessibilityLabel={query ? 'Limpar busca' : 'Atualizar'}>
-              <Feather name={query ? 'x' : 'refresh-cw'} color={COLORS.brown} size={19} />
+            <Feather name="search" size={19} color={COLOR.gold} />
+            <TextInput
+              placeholder="Buscar brechós..."
+              placeholderTextColor="#C4B6A1"
+              value={search}
+              onChangeText={updateSearch}
+              onSubmitEditing={focusSearchResult}
+              returnKeyType="search"
+              style={styles.searchInput}
+              accessibilityLabel="Buscar brechós"
+            />
+            <TouchableOpacity onPress={search ? () => updateSearch('') : reload}
+              accessibilityLabel={search ? 'Limpar busca' : 'Atualizar brechós'}>
+              <Feather name={search ? 'x' : 'refresh-cw'} size={18} color={COLOR.brown} />
             </TouchableOpacity>
           </View>
-          {permission !== 'granted' && !busy && <TouchableOpacity style={styles.notice} onPress={recenter}>
-            <Feather name="navigation" size={14} color={COLORS.brown} />
-            <Text style={styles.noticeText}>Ative a localização para consultar as distâncias.</Text>
-          </TouchableOpacity>}
-          {!busy && statusText ? <Text style={styles.error}>{statusText}</Text> : null}
-          {mapTimedOut && !tilesLoaded && <View style={styles.mapWarning}>
-            <Text style={styles.warningTitle}>O Google Maps não carregou as ruas.</Text>
-            <Text style={styles.warningText}>O mapa nativo foi iniciado, mas não recebeu os dados cartográficos. Você pode continuar usando a busca e abrir o Google Maps.</Text>
-            <TouchableOpacity onPress={openExternalMap} style={styles.warningButton}>
-              <Feather name="external-link" size={15} color={COLORS.terracotta} />
-              <Text style={styles.warningButtonText}>Abrir no Google Maps</Text>
+          {!permissionOK && !loading && (
+            <TouchableOpacity onPress={recenter} style={styles.notice}>
+              <Feather name="navigation" size={14} color={COLOR.brown} />
+              <Text style={styles.noticeText}>Permita a localização para ver distâncias</Text>
             </TouchableOpacity>
-          </View>}
+          )}
+          {!!dataError && <Text style={styles.errorBox}>{dataError}</Text>}
         </View>
 
-        {busy && <View style={styles.loader}>
-          <ActivityIndicator color={COLORS.terracotta} /><Text style={styles.loaderText}>{statusText || 'Carregando...'}</Text>
+        {loading && <View style={styles.loadingBox}>
+          <ActivityIndicator color={COLOR.terracotta} />
+          <Text style={styles.loadingText}>Buscando brechós próximos...</Text>
         </View>}
-        {!busy && !visible.length && <View style={styles.empty}>
-          <Text style={styles.emptyText}>{query ? 'Nenhum brechó encontrado nessa busca.' :
-            stores.length ? 'Nenhum brechó possui coordenadas válidas.' : 'Nenhum brechó disponível.'}</Text>
+        {!!mapError && <View style={styles.mapErrorBox}>
+          <Text style={styles.mapErrorText}>{mapError}</Text>
+          <TouchableOpacity onPress={() => { setMapError(''); setMapLoaded(false); initialCameraDone.current = false; setMapKey(k => k + 1); }}>
+            <Text style={styles.mapErrorAction}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>}
+        {!loading && !visible.length && <View style={styles.emptyBox}>
+          <Text style={styles.emptyText}>
+            {search ? 'Nenhum brechó encontrado.' :
+              stores.length ? 'Os brechós ainda não possuem coordenadas válidas.' :
+                'Nenhum brechó aprovado disponível.'}
+          </Text>
+        </View>}
+
         <View style={styles.controls}>
           <View style={styles.zoomBox}>
-            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(0.6)}><Feather name="plus" size={23} color={COLORS.brown} /></TouchableOpacity>
-            <View style={styles.controlDivider} />
-            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(1.7)}><Feather name="minus" size={23} color={COLORS.brown} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => changeZoom(1)} style={styles.zoomButton} accessibilityLabel="Aproximar">
+              <Feather name="plus" size={23} color={COLOR.brown} />
+            </TouchableOpacity>
+            <View style={styles.zoomLine} />
+            <TouchableOpacity onPress={() => changeZoom(-1)} style={styles.zoomButton} accessibilityLabel="Afastar">
+              <Feather name="minus" size={23} color={COLOR.brown} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[styles.controlButton, styles.gps]} onPress={recenter}>
-            <Feather name="crosshair" size={23} color={COLORS.terracotta} />
+          <TouchableOpacity onPress={recenter} style={styles.gpsButton} accessibilityLabel="Centralizar na minha localização">
+            <Feather name="crosshair" size={23} color={COLOR.terracotta} />
           </TouchableOpacity>
         </View>
-        {selected && !busy && <View style={styles.card}>
-          <TouchableOpacity style={styles.cardTop} onPress={() => router.push(`/store/${selected.id}`)} activeOpacity={0.8}>
-            {safeImageUrl(selected.imagem) ? <Image source={{ uri: safeImageUrl(selected.imagem) }} style={styles.photo} /> :
-              <View style={[styles.photo, styles.photoFallback]}><Feather name="shopping-bag" size={22} color="#D8B551" /></View>}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={2}>{selected.nome}</Text>
-              <Text style={styles.details} numberOfLines={2}>{distanceText(selected.distanceMeters)}
-                {selected.estilos ? ` · ${selected.estilos}` : ''}</Text>
-            </View>
-            <Feather name="chevron-right" color={COLORS.brown} size={20} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.route} onPress={() => openRoute(selected)}>
-            <Feather name="corner-up-right" color="white" size={20} />
-            <Text style={styles.routeText}>Traçar rota</Text>
-            <Feather name="external-link" color="white" size={18} />
-          </TouchableOpacity>
-        </View>}
+
+        {selected && !loading && <TouchableOpacity style={styles.routeButton} onPress={() => openRoute(selected)}>
+          <Feather name="navigation" size={16} color="#FFFFFF" />
+          <Text style={styles.routeText}>Traçar rota</Text>
+          <Feather name="external-link" size={14} color="#FFFFFF" />
+        </TouchableOpacity>}
+        <Pressable onPress={() => Linking.openURL('https://openfreemap.org/')}
+          style={styles.attributionLabel} accessibilityLabel="Créditos cartográficos">
+          <Text style={styles.attributionText}>© OpenStreetMap · OpenFreeMap</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.ground }, fill: { flex: 1 },
-  searchArea: { position: 'absolute', left: 20, right: 20, top: 18 },
-  searchBox: { minHeight: 56, paddingHorizontal: 16, borderWidth: 1, borderColor: '#D8C9B7', borderRadius: 18,
-    backgroundColor: COLORS.cream, elevation: 4, flexDirection: 'row', alignItems: 'center' },
-  searchInput: { flex: 1, padding: 12, color: COLORS.brown, fontSize: 15 },
-  notice: { flexDirection: 'row', alignSelf: 'flex-start', gap: 7, alignItems: 'center', borderRadius: 12,
-    backgroundColor: COLORS.white, marginTop: 10, padding: 9, elevation: 2 },
-  noticeText: { color: COLORS.brown, fontSize: 12 },
-  error: { marginTop: 9, borderRadius: 10, padding: 11, backgroundColor: '#FFF2ED', color: COLORS.terracotta },
-  mapWarning: { marginTop: 10, backgroundColor: '#FFFDF9', borderRadius: 14, padding: 12, elevation: 3 },
-  warningTitle: { color: COLORS.terracotta, fontWeight: '700', fontSize: 13 },
-  warningText: { marginTop: 5, color: COLORS.brown, fontSize: 12, lineHeight: 18 },
-  warningButton: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
-  warningButtonText: { fontSize: 12, color: COLORS.terracotta, fontWeight: '700' },
-  pin: { backgroundColor: COLORS.terracotta, borderWidth: 2, borderColor: 'white', borderRadius: 22,
-    width: 41, height: 41, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  userMarker: { width: 29, height: 29, borderRadius: 15, borderColor: '#FFF', borderWidth: 3,
-    backgroundColor: COLORS.mint, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  userCenter: { height: 9, width: 9, borderRadius: 5, backgroundColor: 'white' },
-  loader: { position: 'absolute', top: '44%', alignSelf: 'center', padding: 14, borderRadius: 15,
-    flexDirection: 'row', gap: 8, backgroundColor: 'white', elevation: 4 },
-  loaderText: { color: COLORS.brown },
-  empty: { position: 'absolute', top: '36%', marginHorizontal: 22, alignSelf: 'center', padding: 18,
-    backgroundColor: 'white', elevation: 3, borderRadius: 14 },
-  emptyText: { color: COLORS.brown, fontSize: 13 },
-  controls: { position: 'absolute', right: 17, bottom: 205, gap: 13, alignItems: 'center' },
-  zoomBox: { borderRadius: 18, backgroundColor: 'white', elevation: 5 },
-  controlButton: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
-  controlDivider: { marginHorizontal: 10, height: 1, backgroundColor: '#EAE0D0' },
-  gps: { backgroundColor: 'white', borderRadius: 26, elevation: 5 },
-  card: { position: 'absolute', bottom: 15, left: 16, right: 16, borderRadius: 20, padding: 14,
-    backgroundColor: 'white', elevation: 8 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  photo: { width: 56, height: 56, borderRadius: 12, backgroundColor: COLORS.cream },
-  photoFallback: { alignItems: 'center', justifyContent: 'center' },
-  name: { color: COLORS.brown, fontSize: 16, fontWeight: '800' },
-  details: { color: COLORS.muted, fontSize: 11, marginTop: 5, lineHeight: 15 },
-  route: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
-    backgroundColor: COLORS.terracotta, paddingVertical: 13, marginTop: 12, borderRadius: 12 },
-  routeText: { color: 'white', fontSize: 15, fontWeight: '800' },
+  screen: { flex: 1, backgroundColor: COLOR.ground },
+  mapArea: { flex: 1, backgroundColor: COLOR.ground },
+  searchArea: { position: 'absolute', left: 24, right: 24, top: 30 },
+  searchBox: { height: 56, borderRadius: 16, borderWidth: 1, borderColor: '#D9C9B5',
+    backgroundColor: COLOR.cream, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center',
+    shadowColor: '#56432C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12,
+    shadowRadius: 12, elevation: 5 },
+  searchInput: { flex: 1, fontSize: 14, color: COLOR.brown, paddingHorizontal: 13, paddingVertical: 10 },
+  notice: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: COLOR.white, elevation: 2, flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 7 },
+  noticeText: { fontSize: 11, color: COLOR.brown },
+  errorBox: { padding: 10, marginTop: 8, backgroundColor: '#FFF6EE', color: COLOR.terracotta,
+    borderRadius: 10, fontSize: 12 },
+  userPulseArea: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center' },
+  pulseBig: { position: 'absolute', width: 70, height: 70, backgroundColor: 'rgba(111,231,205,0.25)', borderRadius: 35 },
+  pulseSmall: { position: 'absolute', width: 48, height: 48, backgroundColor: 'rgba(111,231,205,0.42)', borderRadius: 24 },
+  userDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 3, borderColor: COLOR.white,
+    backgroundColor: COLOR.mint, justifyContent: 'center', alignItems: 'center', elevation: 4 },
+  userWhiteDot: { width: 8, height: 8, backgroundColor: COLOR.white, borderRadius: 4 },
+  storePinWrap: { width: 40, height: 44, justifyContent: 'center', alignItems: 'center' },
+  pinDiamond: { width: 31, height: 31, borderRadius: 16, borderBottomLeftRadius: 2,
+    backgroundColor: COLOR.terracotta, transform: [{ rotate: '-45deg' }], alignItems: 'center',
+    justifyContent: 'center', elevation: 4 },
+  pinSelected: { borderWidth: 1.5, borderColor: '#FFF7EC' },
+  pinIconRotate: { transform: [{ rotate: '45deg' }] },
+  bubbleWrap: { width: 215, alignItems: 'center' },
+  bubble: { width: 215, minHeight: 78, backgroundColor: '#FFFFFF', borderRadius: 16,
+    paddingHorizontal: 11, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 9,
+    elevation: 7, shadowColor: '#443222', shadowOpacity: 0.15, shadowRadius: 16 },
+  bubbleIcon: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLOR.cream,
+    alignItems: 'center', justifyContent: 'center' },
+  bubbleInfo: { flex: 1, justifyContent: 'center' },
+  bubbleName: { fontWeight: '700', color: COLOR.brown, fontSize: 13, lineHeight: 16 },
+  bubbleSub: { color: COLOR.muted, fontSize: 10.5, marginTop: 4, lineHeight: 13 },
+  bubbleRoute: { width: 22, height: 32, justifyContent: 'center', alignItems: 'center' },
+  bubbleCaret: { width: 10, height: 10, backgroundColor: COLOR.white, marginTop: -6,
+    transform: [{ rotate: '45deg' }] },
+  controls: { position: 'absolute', bottom: 120, right: 24, gap: 12, alignItems: 'center' },
+  zoomBox: { width: 52, borderRadius: 16, backgroundColor: COLOR.white, elevation: 5,
+    shadowColor: '#3E3227', shadowOpacity: 0.12, shadowRadius: 10 },
+  zoomButton: { width: 52, height: 48, alignItems: 'center', justifyContent: 'center' },
+  zoomLine: { width: 32, height: 1, backgroundColor: '#E9E1D5', alignSelf: 'center' },
+  gpsButton: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLOR.white,
+    alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  routeButton: { position: 'absolute', left: 24, bottom: 27, borderRadius: 17,
+    backgroundColor: COLOR.terracotta, paddingHorizontal: 17, height: 47,
+    flexDirection: 'row', alignItems: 'center', gap: 8, elevation: 5 },
+  routeText: { fontSize: 13, fontWeight: '700', color: COLOR.white },
+  attributionLabel: { position: 'absolute', bottom: 8, right: 9, padding: 3,
+    backgroundColor: 'rgba(255,255,255,0.78)', borderRadius: 4 },
+  attributionText: { fontSize: 8, color: COLOR.brown },
+  loadingBox: { position: 'absolute', top: '40%', alignSelf: 'center', padding: 14,
+    backgroundColor: COLOR.white, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 8, elevation: 4 },
+  loadingText: { fontSize: 12, color: COLOR.brown },
+  mapErrorBox: { position: 'absolute', top: '30%', alignSelf: 'center', maxWidth: 285,
+    backgroundColor: COLOR.white, padding: 15, borderRadius: 13, elevation: 4 },
+  mapErrorText: { color: COLOR.brown, lineHeight: 18, fontSize: 12 },
+  mapErrorAction: { color: COLOR.terracotta, fontWeight: '700', fontSize: 13, marginTop: 9 },
+  emptyBox: { position: 'absolute', top: '30%', left: 28, right: 28, padding: 18, borderRadius: 14,
+    backgroundColor: COLOR.white, elevation: 4 },
+  emptyText: { color: COLOR.brown, fontSize: 13, textAlign: 'center' },
 });
