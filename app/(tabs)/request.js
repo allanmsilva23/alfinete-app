@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F5',
   },
   header: {
-    paddingTop: 20, // Ajustado já que removemos o botão gigante
+    paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 15,
   },

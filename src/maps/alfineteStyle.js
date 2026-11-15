@@ -1,9 +1,3 @@
-/**
- * Estiliza o basemap verdadeiro do OpenFreeMap para lembrar o Figma do Alfinete.
- * Usa o estilo oficial para obter fontes, sprites, tile sources e labels corretos;
- * não inventa ruas, não desenha um grid artificial e não utiliza Google Maps SDK.
- * Se o JSON não puder ser lido/convertido, o componente usa a URL original.
- */
 const BASE_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 const STYLE_URL = BASE_STYLE_URL;
 const P = {

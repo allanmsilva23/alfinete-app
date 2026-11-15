@@ -1,4 +1,3 @@
-/** Funções puras de geografia usadas na tela de mapas. */
 function isCoordinate(lat, lon) {
   return lat !== null && lat !== undefined && lon !== null && lon !== undefined &&
     String(lat).trim() !== '' && String(lon).trim() !== '' &&

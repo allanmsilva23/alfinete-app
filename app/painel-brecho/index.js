@@ -11,7 +11,6 @@ import { api, safeImageUrl } from '../../src/api/client';
 import { useAuth } from '../../src/auth/AuthContext';
 import { Action, Card, Title, Field, Pill, s, palette } from '../../components/AlfineteUI';
 
-// "Faixa de preço" deixa de ser digitada livremente: será gerada no backend.
 const editable = [
   ['nome', 'Nome do brechó'],
   ['descricao', 'Descrição'],
@@ -162,7 +161,6 @@ export default function PainelBrecho() {
     if (novoEstilo.trim()) {
       return Alert.alert('Estilo não adicionado', 'Toque em "Adicionar estilo" antes de salvar.');
     }
-    // A padronização definitiva de capitalização ocorre novamente no backend.
     exec('/painel-brecho/me', 'PATCH', {
       ...form,
       estilos,

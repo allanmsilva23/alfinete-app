@@ -96,7 +96,6 @@ export default function MapScreen() {
   const [dataError, setDataError] = useState('');
   const [revision, setRevision] = useState(0);
 
-  // Basemap verdadeiro com cores ajustadas ao Figma; mantém a URL oficial como fallback.
   useEffect(() => {
     let active = true;
     loadAlfineteStyle()
@@ -180,7 +179,6 @@ export default function MapScreen() {
     return () => clearTimeout(timer);
   }, [searchValue, mapLoaded, loading, visible, focusSearchResult]);
 
-  // Enquadra posição e até três brechós perto quando não há busca ativa.
   useEffect(() => {
     if (searchValue || !mapLoaded || loading || initialCameraDone.current) return;
     const near = position && visible.length

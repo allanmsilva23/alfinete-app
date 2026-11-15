@@ -23,15 +23,9 @@ export default function TabLayout() {
           backgroundColor: '#FFFDF9',
           borderTopWidth: 1,
           borderTopColor: '#EAE0D0',
-
-          // Altura original + área dos botões do Android
           height: 60 + bottomInset,
-
-          // Mantém ícones e textos acima da navegação
           paddingBottom: Math.max(10, bottomInset),
           paddingTop: 5,
-
-          // Evita sobreposição por posicionamento absoluto
           position: 'relative',
         },
 
