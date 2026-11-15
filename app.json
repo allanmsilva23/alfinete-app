@@ -1,13 +1,14 @@
+
 {
   "expo": {
     "name": "Alfinete",
     "slug": "alfinete-app",
     "scheme": "alfineteapp",
+    "owner": "allanmsilva23",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alfinete.app"
@@ -19,9 +20,9 @@
         "backgroundImage": "./assets/images/backgroundAlfineteLogoAndroid.png",
         "monochromeImage": "./assets/images/alfineteLogoBWAndroid.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.alfinete.app"
+      "package": "com.alfinete.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static"
@@ -43,7 +44,17 @@
       "expo-font",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -52,7 +63,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "99496f9d-69bf-4483-a390-d1c92c542acb"
+        "projectId": "fbd7de61-d612-4bde-b404-537f917f3805"
       }
     }
   }
